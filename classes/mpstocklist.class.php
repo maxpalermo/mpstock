@@ -37,7 +37,7 @@ Class MpStockListHelperObject
     private $fields_list;
     private $module;
     
-    public function __construct($id_product, $id_employee = 0, $module) 
+    public function __construct($id_product, $id_employee = 0, $module = null) 
     {
         $this->module = $module;
         $this->id_product = $id_product;
@@ -94,7 +94,7 @@ Class MpStockListHelperObject
                 'width' => 'auto',
                 'type' => 'date',
                 'align' => 'text-center',
-                'search' => false,
+                'search' => true,
             ),
             'employee' => array(
                 'title' => $this->l('Employee'),
@@ -135,36 +135,38 @@ Class MpStockListHelperObject
         );
         $this->helper->page = Tools::getValue('page', 1);
         $this->helper->shopLinkType = '';
-        $this->helper->simple_header = true;
+        $this->helper->simple_header = false;
         $this->helper->identifier = 'id_mp_stock';
-        $this->helper->show_toolbar = false;
+        $this->helper->show_toolbar = true;
         $this->helper->title = $this->l('Stock movements');
         $this->helper->table = $this->table;
         $this->helper->token = '';
         $this->helper->currentIndex = '';
         $this->helper->no_link = true;
-        $this->helper->toolbar_btns = array(
+        $this->helper->toolbar_btn = array(
             'terminal' => array(
-                'href' => '',
+                'href' => 'javascript:mpstock_printReport();',
                 'desc' => $this->l('Print report'),
+                'style' => 'color: #BB8888;'
             ),
             'stats' => array(
-                'href' => '',
-                'desc' => $this->l('Statistics')
+                'href' => 'javascript:mpstock_statistics();',
+                'desc' => $this->l('Statistics'),
+                'style' => 'color: #88BB88;'
             )
         );
-        $this->list = $this->getList();
+        $this->list = $this->getList($this->helper->_default_pagination, $this->helper->page);
         $table = $this->helper->generateList($this->list, $this->fields_list);
         return $table;
     }
     
-    public function getList()
+    public function getList($pagination, $page)
     {
         $movements = $this->prepareList(
             array_merge(
-                $this->getListProductsStock(),
-                $this->getListOrders(),
-                $this->getListOrderSlip()
+                $this->getListProductsStock($pagination, $page),
+                $this->getListOrders($pagination, $page),
+                $this->getListOrderSlip($pagination, $page)
             )
         );
         

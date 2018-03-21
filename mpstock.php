@@ -444,7 +444,24 @@ class MpStock extends Module
     
     public function hookDisplayAdminProductsExtra()
     {
+        require_once $this->getPath().'/classes/ProductExtraForm.php';
+        
         $id_product = (int)Tools::getValue('id_product');
+        $form = new MpStockProductExtraForm(
+            $this,
+            array(
+                'search_in_orders' => 1,
+                'search_in_slips' => 1,
+                'search_in_movements'=> 1,
+                'date_start' => '',
+                'date_end' => '',
+                'id_product' => (int)$id_product,
+                'id_employee' => (int) Context::getContext()->employee->id,
+                'module_token' => Tools::encrypt($this->name),
+            )
+        );
+        return $form->display();
+        
         $list = new MpStockListHelperObject($id_product, 0, $this);
         $module_link = $this->context->link->getAdminLink('AdminModules')
             . '&configure=' . $this->name
@@ -476,9 +493,31 @@ class MpStock extends Module
         $id_employee = (int)Tools::getValue('id_employee');
         $date_start = Tools::getValue('date_start');
         $date_end = Tools::getValue('date_end');
-        $table = new MpStockListHelperObject($id_product, $id_employee, $this);
-        print $table->findMovements($date_start, $date_end);
-        exit();
+        
+        require_once $this->getPath().'classes/StockMovements.php';
+        $stockMovements = new MpStockStockMovements(
+            $this,
+            array(
+                'search_in_orders' => (int)Tools::getValue('search_in_orders', 1),
+                'search_in_slips' => (int)Tools::getValue('search_in_slips', 1),
+                'search_in_movements' => (int)Tools::getValue('search_in_movements', 1),
+                'id_product' => (int)Tools::getValue('id_product', 0),
+                'id_employee' => (int)Tools::getValue('id_employee', 0),
+                'date_start' => Tools::getValue('date_start', ''),
+                'date_end' => Tools::getValue('date_end', ''),
+            )
+        );
+        
+        $html = $stockMovements->getMovements();
+        
+        return Tools::jsonEncode(
+            array(
+                'result' => true,
+                'html' => $html,
+            )
+        );
+        //$table = new MpStockListHelperObject($id_product, $id_employee, $this);
+        //print $table->findMovements($date_start, $date_end);
     }
     
     public function ajaxProcessExportCSV()

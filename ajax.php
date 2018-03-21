@@ -43,11 +43,10 @@ if (Tools::isSubmit('ajax') && tools::isSubmit('action') && tools::isSubmit('tok
         exit();
     }
     $action = 'ajaxProcess' . Tools::getValue('action');
-    PrestaShopLoggerCore::addLog('ajax calling:' . $action);
-    $module->$action();
+    print $module->$action();
     exit();
 } else {
-        Tools::jsonEncode(
+        print Tools::jsonEncode(
             array(
                 'result' => false,
                 'msg_error' => $module->displayError(
