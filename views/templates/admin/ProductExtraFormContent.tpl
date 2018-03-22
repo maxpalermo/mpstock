@@ -70,6 +70,20 @@
 	</div>
     </div>
     <div class="form-group">
+        <label class="control-label col-lg-3 required">{l s='Select combination' mod='mpstock'}</label>
+	<div class="col-lg-9">
+            <select id="select_combination" class='fixed-width-xxl'>
+                <option value="0">{l s='All' mod='mpstock'}</option>
+                {foreach $combinations as $combination}
+                    <option value="{$combination.id}">{$combination.value}</option>
+                {/foreach}
+            </select>
+            <p class="help-block">
+                {l s='Select a combination from the list above' mod='mpstock'}
+            </p>							
+	</div>
+    </div>    
+    <div class="form-group">
 	<label class="control-label col-lg-3 required">{l s='Start date' mod='mpstock'}</label>
         <div class="col-lg-8">
             <div class="row">

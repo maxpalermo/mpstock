@@ -36,9 +36,15 @@ Class MpStockStockMovements
     private $id_shop;
     private $id_product;
     private $id_employee;
+    private $id_product_attribute;
     private $smarty;
     private $module;
     private $db;
+    private $tot_rows;
+    private $tot_pages;
+    private $pagination;
+    private $page;
+    private $query;
     
     public function __construct($module, $params)
     {
@@ -54,15 +60,117 @@ Class MpStockStockMovements
         $this->date_end = $params['date_end'].' 23:59:59';
         $this->id_product = (int)$params['id_product'];
         $this->id_employee = (int)$params['id_employee'];
+        $this->id_product_attribute = (int)$params['id_product_attribute'];
+        $this->pagination = (int)$params['pagination'];
+        $this->page = (int)$params['page'];
         $this->module = $module;
-        
     }
     
     public function getMovements()
     {
-        $query = "<pre>" . $this->prepareQuery() . "</pre>";
+        $query = $this->prepareQuery();
+        $rows = $this->getRows($query);
+        $this->smarty->assign(
+            array(
+                'pagination' => $this->pagination,
+                'page' => $this->page,
+                'tot_rows' => $this->tot_rows,
+                'tot_pages' => $this->tot_pages,
+                'rows' => $rows,
+                'debug' => false,
+                'query' => $this->query,
+            )
+        );
         $table = $this->smarty->fetch($this->module->getPath().'views/templates/admin/ProductExtraTableMovements.tpl');
-        return $query . $table;
+        return $table;
+    }
+    
+    public function getRows($sql)
+    {
+        $result = $this->db->executeS($sql);
+        if ($result) {
+            return $this->prepareRows($result);
+        } else {
+            //$this->module->_errors[] = $this->l('Error dgetting data');
+            return array();
+        }
+    }
+    
+    public function prepareRows($rows)
+    {
+        /**
+           =>name
+           product_attribute_id
+           product_quantity
+           product_price
+           id_tax_rules_group
+           =>product_tax_rate
+           product_date_add
+           product_customer
+           product_employee
+           =>referrer
+         */
+        foreach ($rows as &$row)
+        {
+            $row['product_name'] = $this->getNameProduct($row['product_attribute_id']);
+            if ((int)$row['id_tax_rules_group']) {
+                $row['product_tax_rate'] = $this->getProductTaxRate($row['id_tax_rules_group']);
+            }
+            if ((int)$row['product_customer']) {
+                $row['referrer'] = $this->getCustomerName($row['product_customer']);
+            }
+            if ((int)$row['product_employee']) {
+                $row['referrer'] = $this->getEmployeeName($row['product_employee']);
+            }
+            $row['product_total'] = $row['product_qty'] * $row['product_price'];
+            $row['product_amount'] = $row['product_total'] * (100 + $row['product_tax_rate']) / 100;
+        }
+        
+        return $rows;
+    }
+    
+    public function getNameProduct($id_product_attribute)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $id_lang = Context::getContext()->language->id;
+        $sql->select('id_attribute')
+            ->from('product_attribute_combination')
+            ->where('id_product_attribute = ' . (int)$id_product_attribute);
+        $name = '';
+        $attributes = $db->executeS($sql);
+        foreach ($attributes as $attribute) {
+            $attr = new AttributeCore($attribute['id_attribute']);
+            $name .= ' ' . $attr->name[(int)$id_lang];
+        }
+        
+        return $name;
+    }
+    
+    public function getProductTaxRate($id_tax_rules_group)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        
+        $sql->select('t.rate')
+            ->from('tax', 't')
+            ->innerJoin('tax_rule', 'tr', 'tr.id_tax=t.id_tax')
+            ->innerJoin('tax_rules_group', 'trl', 'trl.id_tax_rules_group=tr.id_tax_rules_group')
+            ->where('tr.id_tax_rules_group='.(int)$id_tax_rules_group);
+        
+        return (float)$db->getValue($sql);
+    }
+    
+    public function getCustomerName($id_customer)
+    {
+        $customer = new CustomerCore($id_customer);
+        return $customer->firstname.' '.$customer->lastname;
+    }
+    
+    public function getEmployeeName($id_employee)
+    {
+        $employee = new EmployeeCore($id_employee);
+        return $employee->firstname . ' ' . $employee->lastname;
     }
     
     public function prepareQuery()
@@ -84,17 +192,23 @@ Class MpStockStockMovements
             $sql_count[] = $this->getQueryCountMovements();
         }
         
-        $count = $this->db->executeS(implode(' UNION ', $sql_count));
+        $query = implode(' UNION ', $sql_count);
+        
+        $count = $this->db->executeS($query);
         $totRows = 0;
         foreach ($count as $row) {
             $totRows+=$row['totrows'];
         }
-        print "totrows: " . $totRows;
+        $this->tot_rows = $totRows;
+        $start = $this->pagination * ($this->page-1);
+        $this->tot_pages = ceil($this->tot_rows / $this->pagination);
         
         $query = implode(' UNION ', $sqls) 
-            . 'ORDER BY product_date_add DESC'
+            . 'ORDER BY product_date_add DESC, product_attribute_id ASC'
             . PHP_EOL
-            . 'LIMIT 30';
+            . 'LIMIT '.$this->pagination.' OFFSET '.$start;
+        
+        $this->query = $query;
         return $query;
     }
     
@@ -111,8 +225,17 @@ Class MpStockStockMovements
             ->select('\'0\' as product_employee')
             ->from('order_detail', 'od')
             ->innerJoin('orders', 'o', 'o.id_order=od.id_order')
-            ->where('o.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'')
-            ->where('od.id_shop='.(int)$this->id_shop);
+            ->where('od.id_shop='.(int)$this->id_shop)
+            ->where('od.product_id='.(int)$this->id_product);
+        
+        if (ValidateCore::isDate($this->date_start) && ValidateCore::isDate($this->date_end)) {
+            $sql->where('o.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'');
+        }
+        
+        if ($this->id_product_attribute>0) {
+            $sql->where('od.product_attribute_id='.(int)$this->id_product_attribute);
+        }
+        
         return $sql->__toString();
     }
     
@@ -130,8 +253,17 @@ Class MpStockStockMovements
             ->from('order_slip_detail', 'osd')
             ->innerJoin('order_detail', 'od', 'od.id_order_detail=osd.id_order_detail')
             ->innerJoin('order_slip', 'os', 'os.id_order_slip=osd.id_order_slip')
-            ->where('os.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'')
-            ->where('od.id_shop='.(int)$this->id_shop);
+            ->where('od.id_shop='.(int)$this->id_shop)
+            ->where('od.product_id='.(int)$this->id_product);
+        
+        if (ValidateCore::isDate($this->date_start) && ValidateCore::isDate($this->date_end)) {
+            $sql->where('os.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'');
+        }
+        
+        if ($this->id_product_attribute>0) {
+            $sql->where('od.product_attribute_id='.(int)$this->id_product_attribute);
+        }
+        
         return $sql->__toString();
     }
     
@@ -147,8 +279,17 @@ Class MpStockStockMovements
             ->select('\'0\' as product_customer')
             ->select('mps.id_employee as product_employee')
             ->from('mp_stock', 'mps')
-            ->where('mps.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'')
-            ->where('mps.id_shop='.(int)$this->id_shop);
+            ->where('mps.id_shop='.(int)$this->id_shop)
+            ->where('mps.id_product='.(int)$this->id_product);
+        
+        if (ValidateCore::isDate($this->date_start) && ValidateCore::isDate($this->date_end)) {
+            $sql->where('mps.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'');
+        }
+        
+        if ($this->id_product_attribute>0) {
+            $sql->where('mps.id_product_attribute='.(int)$this->id_product_attribute);
+        }
+        
         return $sql->__toString();
     }
     
@@ -158,8 +299,17 @@ Class MpStockStockMovements
         $sql->select('count("*") as totrows')
             ->from('order_detail', 'od')
             ->innerJoin('orders', 'o', 'o.id_order=od.id_order')
-            ->where('o.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'')
-            ->where('od.id_shop='.(int)$this->id_shop);
+            ->where('od.id_shop='.(int)$this->id_shop)
+            ->where('od.product_id='.(int)$this->id_product);
+        
+        if (ValidateCore::isDate($this->date_start) && ValidateCore::isDate($this->date_end)) {
+            $sql->where('o.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'');
+        }
+        
+        if ($this->id_product_attribute>0) {
+            $sql->where('od.product_attribute_id='.(int)$this->id_product_attribute);
+        }
+        
         return $sql->__toString();
     }
     
@@ -170,8 +320,17 @@ Class MpStockStockMovements
             ->from('order_slip_detail', 'osd')
             ->innerJoin('order_detail', 'od', 'od.id_order_detail=osd.id_order_detail')
             ->innerJoin('order_slip', 'os', 'os.id_order_slip=osd.id_order_slip')
-            ->where('os.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'')
-            ->where('od.id_shop='.(int)$this->id_shop);
+            ->where('od.id_shop='.(int)$this->id_shop)
+            ->where('od.product_id='.(int)$this->id_product);
+        
+        if (ValidateCore::isDate($this->date_start) && ValidateCore::isDate($this->date_end)) {
+            $sql->where('os.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'');
+        }
+        
+        if ($this->id_product_attribute>0) {
+            $sql->where('od.product_attribute_id='.(int)$this->id_product_attribute);
+        }
+        
         return $sql->__toString();
     }
     
@@ -180,8 +339,17 @@ Class MpStockStockMovements
         $sql = new DbQueryCore();
         $sql->select('count("*") as totrows')
             ->from('mp_stock', 'mps')
-            ->where('mps.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'')
-            ->where('mps.id_shop='.(int)$this->id_shop);
+            ->where('mps.id_shop='.(int)$this->id_shop)
+            ->where('mps.id_product='.(int)$this->id_product);
+        
+        if (ValidateCore::isDate($this->date_start) && ValidateCore::isDate($this->date_end)) {
+            $sql->where('mps.date_add between \''.$this->date_start.'\' and \''.$this->date_end.'\'');
+        }
+        
+        if ($this->id_product_attribute>0) {
+            $sql->where('mps.id_product_attribute='.(int)$this->id_product_attribute);
+        }
+        
         return $sql->__toString();
     }
     

@@ -461,22 +461,6 @@ class MpStock extends Module
             )
         );
         return $form->display();
-        
-        $list = new MpStockListHelperObject($id_product, 0, $this);
-        $module_link = $this->context->link->getAdminLink('AdminModules')
-            . '&configure=' . $this->name
-            . '&tab_module=administration'
-            . '&module_name='.$this->name;
-        $this->context->smarty->assign(
-            array(
-                'id_product' => (int)$id_product,
-                'id_employee' => (int)$this->context->employee->id,
-                'module_link' => $module_link,
-                'module_token' => Tools::getAdminTokenLite('AdminModules'),
-                'showOptions' => true,
-            )
-        );
-        return $list->display();
     }
     
     public function hookDisplayBackOfficeHeader()
@@ -493,6 +477,9 @@ class MpStock extends Module
         $id_employee = (int)Tools::getValue('id_employee');
         $date_start = Tools::getValue('date_start');
         $date_end = Tools::getValue('date_end');
+        $current_page = (int)Tools::getValue('current_page');
+        $pagination = (int)Tools::getValue('pagination');
+        $id_product_attribute = (int)Tools::getValue('id_product_attribute', 0);
         
         require_once $this->getPath().'classes/StockMovements.php';
         $stockMovements = new MpStockStockMovements(
@@ -501,10 +488,13 @@ class MpStock extends Module
                 'search_in_orders' => (int)Tools::getValue('search_in_orders', 1),
                 'search_in_slips' => (int)Tools::getValue('search_in_slips', 1),
                 'search_in_movements' => (int)Tools::getValue('search_in_movements', 1),
-                'id_product' => (int)Tools::getValue('id_product', 0),
-                'id_employee' => (int)Tools::getValue('id_employee', 0),
-                'date_start' => Tools::getValue('date_start', ''),
-                'date_end' => Tools::getValue('date_end', ''),
+                'id_product' => $id_product,
+                'id_product_attribute' => $id_product_attribute,
+                'id_employee' => $id_employee,
+                'date_start' => $date_start,
+                'date_end' => $date_end,
+                'pagination' => $pagination>0?$pagination:50,
+                'page' => $current_page>0?$current_page:1,
             )
         );
         

@@ -39,7 +39,8 @@ Class MpStockProductExtraForm
     private $smarty;
     private $module;
     private $module_token;
-    
+    private $combinations;
+   
     public function __construct($module, $params)
     {
         $this->context = Context::getContext();
@@ -61,6 +62,7 @@ Class MpStockProductExtraForm
     
     public function display()
     {
+        $this->getCombinations($this->id_product);
         $this->smarty->assign(
             array(
                 'search_in_orders' => $this->search_in_orders,
@@ -76,6 +78,9 @@ Class MpStockProductExtraForm
                 'id_product' => $this->id_product,
                 'id_employee' => $this->id_employee,
                 'module_token' => $this->module_token,
+                'pagination' => 50,
+                'page' => 1,
+                'combinations' => $this->combinations,
             )
         );
         
@@ -83,6 +88,38 @@ Class MpStockProductExtraForm
         $form = $this->smarty->fetch($form_path);
         
         return $form;
+    }
+    
+    public function getCombinations($id_product)
+    {
+        $product = new ProductCore($id_product);
+        $combinations = $product->getAttributeCombinations($this->id_lang);
+        $this->combinations = array();
+        $id_product_attribute = null;
+        $names = array();
+        foreach ($combinations as $combination) {
+            if (is_null($id_product_attribute)) {
+                $id_product_attribute = $combination['id_product_attribute'];
+                $names = array();
+                $names[] = $combination['attribute_name'];
+                continue;
+            }
+            if ($id_product_attribute == $combination['id_product_attribute']) {
+                $names[] = $combination['attribute_name'];
+            } else {
+                $this->combinations[] = array(
+                    'id' => $id_product_attribute,
+                    'value' => implode(' - ', $names),
+                );
+                $names = array();
+                $id_product_attribute = $combination['id_product_attribute'];
+                $names[] = $combination['attribute_name'];
+            }   
+        }
+        $this->combinations[] = array(
+            'id' => $id_product_attribute,
+            'value' => implode(' - ', $names),
+        );
     }
     
     /**
