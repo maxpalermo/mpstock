@@ -24,8 +24,8 @@
 *}
 
 <div class="panel-heading">
-	<i class="icon-cogs" style="color: #21a3d8; margin-right: 10px;"></i>
-	{l s='Stock movements' mod='mpstock'}
+	<i class="icon-bar-chart-o" style="color: #21a3d8; margin-right: 10px;"></i>
+	{l s='Add a new stock movement' mod='mpstock'}
 	<span class="badge">{$tot_badge}</span>
 	<span class="panel-heading-action" style="text-align: center;">
 		<a id="btn-date-between" class="list-toolbar-btn" href="javascript:void(0);" onclick="$(&quot;#div-date-between&quot;).toggle();">

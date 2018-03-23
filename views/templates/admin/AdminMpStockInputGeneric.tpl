@@ -23,10 +23,4 @@
 *  International Registered Trademark & Property of PrestaShop SA
 *}
 
-<div class="panel-footer" style='height: 96px;'>
-    <button type="button" value="1" id="mpstock_submit" class="btn btn-default pull-right" style='text-align: center;'>
-        <i class="icon icon-2x icon-search" style='color: #88BB88; margin-bottom: 12px;'></i>
-        <br>
-        <span>{l s='Find movements' mod='mpstock'}</span>
-    </button>
-</div>
+<input type='text' class='input fixed-width-{$input_text_size}' name='{$input_name}' value='{$input_value}' style='text-align: {$input_text_align};'>

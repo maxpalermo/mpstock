@@ -91,7 +91,7 @@
                 {/foreach}	
             </tbody>
 	</table>
-</div>
+    </div>
     <div class="row" style='text-align: center;'>
         <div style='float: left'>
             <div style='display: inline-block'>

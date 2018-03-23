@@ -39,6 +39,7 @@ class AdminMpStockController extends ModuleAdminController
     protected $messages;
     protected $local_path;
     protected $parameters = array();
+    protected $smarty;
     
     public function __construct()
     {   
@@ -51,6 +52,7 @@ class AdminMpStockController extends ModuleAdminController
         $this->id_shop = (int)ContextCore::getContext()->shop->id;
         $this->id_employee = (int)ContextCore::getContext()->employee->id;
         $this->link = new LinkCore();
+        $this->smarty = Context::getContext()->smarty;
     }
 
     public function initContent()
@@ -62,7 +64,8 @@ class AdminMpStockController extends ModuleAdminController
         
         if (Tools::isSubmit('ajax')) {
             $action = 'ajaxProcess' . Tools::getValue('action');
-            $this->$action();
+            print $this->$action();
+            exit();
         }
         
         if (Tools::isSubmit('mp_stockBox') || Tools::isSubmit('deletemp_stock')) {
@@ -90,7 +93,25 @@ class AdminMpStockController extends ModuleAdminController
         parent::initContent();
     }
     
-    private function initForm($id_movement = 0)
+    private function initForm()
+    {
+        $this->smarty->assign(
+            array(
+                'header_form' => $this->module->getPath().'views/templates/admin/AdminMpStockHeader.tpl',
+                'content_form' => $this->module->getPath().'views/templates/admin/AdminMpStockContent.tpl',
+                'footer_form' => $this->module->getPath().'views/templates/admin/AdminMpStockFooter.tpl',
+                'tot_badge' => 0,
+                'page' => 0,
+                'pagination' => 0,
+                'img_folder' => $this->module->getUrl().'views/img/',
+                'select_stock_movements' => $this->getMovements(),
+            )
+        );
+        
+        return $this->smarty->fetch($this->module->getPath().'views/templates/admin/AdminMpStock.tpl');
+    }
+    
+    private function initForm2($id_movement = 0)
     {
         $fields_form = array(
             'form' => array(
@@ -314,181 +335,6 @@ class AdminMpStockController extends ModuleAdminController
         return $helper->generateForm(array($fields_form));
     }
     
-    private function displayFormProcess()
-    {
-        $fields_form = array(
-            'form' => array(
-                'legend' => array(
-                    'title' => $this->l('Process'),
-                    'icon' => 'icon-cogs',
-                ),
-                'input' => array(
-                    array(
-                        'required' => true,
-                        'type' => 'switch',
-                        'name' => 'input_switch_category',
-                        'label' => $this->l('Add category'),
-                        'desc' => $this->l('If set add a new category to selected products.'),
-                        'values' => array(
-                            array(
-                                'id' => 'id_switch_category_on',
-                                'value' => '1',
-                                'label' => $this->l('YES'),
-                            ),
-                            array(
-                                'id' => 'id_switch_category_off',
-                                'value' => '0',
-                                'label' => $this->l('NO'),
-                            ),
-                        ),
-                    ),
-                    array(
-                        'required' => true,
-                        'type' => 'select',
-                        'name' => 'input_select_category',
-                        'label' => $this->l('Categories'),
-                        'desc' => $this->l('Select one category to add to selected products'),
-                        'prefix' => '<i class="icon-chevron-right"></i>',
-                        'suffix' => '<i class="icon-pencil"></i>',
-                        'options' => array(
-                            'query' => $this->getCategories(true),
-                            'id' => 'id_category',
-                            'name' => 'name',
-                        ),
-                        'class' => 'chosen',
-                    ),
-                     array(
-                        'required' => true,
-                        'type' => 'switch',
-                        'name' => 'input_switch_feature',
-                        'label' => $this->l('Add feature'),
-                        'desc' => $this->l('If set add a new feature to selected products.'),
-                        'values' => array(
-                            array(
-                                'id' => 'id_switch_feature_on',
-                                'value' => '1',
-                                'label' => $this->l('YES'),
-                            ),
-                            array(
-                                'id' => 'id_switch_feature_off',
-                                'value' => '0',
-                                'label' => $this->l('NO'),
-                            ),
-                        ),
-                    ),
-                    array(
-                        'required' => true,
-                        'type' => 'select',
-                        'name' => 'input_select_feature',
-                        'label' => $this->l('Feature'),
-                        'desc' => $this->l('Select one feature to add to selected products'),
-                        'prefix' => '<i class="icon-chevron-right"></i>',
-                        'suffix' => '<i class="icon-pencil"></i>',
-                        'options' => array(
-                            'query' => $this->getFeatures(),
-                            'id' => 'id_feature',
-                            'name' => 'name',
-                        ),
-                        'class' => 'chosen',
-                    ),
-                    array(
-                        'required' => true,
-                        'type' => 'select',
-                        'name' => 'input_select_feature_value',
-                        'label' => $this->l('Feature values'),
-                        'desc' => $this->l('Select one feature value to add to selected products'),
-                        'prefix' => '<i class="icon-chevron-right"></i>',
-                        'suffix' => '<i class="icon-pencil"></i>',
-                        'options' => array(
-                            'query' => array(
-                                array(
-                                    'id_feature_value' => 0,
-                                    'name' => $this->l('Select a feature first'),
-                                ),
-                            ),
-                            'id' => 'id_feature_value',
-                            'name' => 'name',
-                        ),
-                        'class' => 'chosen',
-                    ),
-                    array(
-                        'required' => true,
-                        'type' => 'switch',
-                        'name' => 'input_switch_on_sale',
-                        'label' => $this->l('On sale'),
-                        'desc' => $this->l('If set selected product will be marked as "on sale"'),
-                        'values' => array(
-                            array(
-                                'id' => 'id_switch_onsale_on',
-                                'value' => '1',
-                                'label' => $this->l('YES'),
-                            ),
-                            array(
-                                'id' => 'id_switch_onsale_off',
-                                'value' => '0',
-                                'label' => $this->l('NO'),
-                            ),
-                        ),
-                    ),
-                ),
-                'submit' => array(),
-                'buttons' => array(
-                    array(
-                        'title' => $this->l('back'),
-                        'name' => 'btn_module_back',
-                        'icon' => 'process-icon-back',
-                        'id' => 'btn_module_back',
-                        'href' => $this->link->getAdminLink($this->className)
-                    ),
-                    array(
-                        'title' => $this->l('Select all'),
-                        'name' => 'btn_products_select_all',
-                        'icon' => 'process-icon-toggle-on',
-                        'id' => 'btn_products_select_all'
-                    ),
-                    array(
-                        'title' => $this->l('Select none'),
-                        'name' => 'btn_products_select_none',
-                        'icon' => 'process-icon-toggle-off',
-                        'id' => 'btn_products_select_none'
-                    ),
-                    array(
-                        'title' => $this->l('Print Report'),
-                        'name' => 'btn_products_print_report',
-                        'icon' => 'process-icon-configure',
-                        'id' => 'btn_products_print_report'
-                    ),
-                    array(
-                        'title' => $this->l('Process Products'),
-                        'name' => 'btn_products_print_report',
-                        'icon' => 'process-icon-ok',
-                        'id' => 'btn_products_process'
-                    ),
-                ),
-            ),
-        );
-        
-        $helper = new HelperFormCore();
-        $helper->table = 'product';
-        $helper->default_form_language = (int)$this->id_lang;
-        $helper->allow_employee_form_lang = (int) Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANGUAGE');
-        $helper->submit_action = 'submit_form_process';
-        $helper->currentIndex = $this->link->getAdminLink($this->className, false);
-        $helper->token = Tools::getAdminTokenLite($this->className);
-        $helper->tpl_vars = array(
-            'fields_value' => array(
-                'input_switch_category' => 1,
-                'input_select_category' => 0,
-                'input_switch_feature' => 1,
-                'input_select_feature' => 0,
-                'input_select_feature_value' => 0,
-                'input_switch_on_sale' => 0,
-            ),
-            'languages' => $this->context->controller->getLanguages(),
-        );
-        return $helper->generateForm(array($fields_form));
-    }
-    
     private function initList()
     {
         $fields_list = array(
@@ -628,6 +474,7 @@ class AdminMpStockController extends ModuleAdminController
         $this->addJqueryUI('ui.effect');
         $this->addJqueryUI('ui.effect-slide');
         $this->addJqueryUI('ui.effect-fold');
+        $this->addJqueryUI('ui.autocomplete');
     }
     
     public function getMovements()
@@ -635,8 +482,8 @@ class AdminMpStockController extends ModuleAdminController
         $db = Db::getInstance();
         $sql = new DbQueryCore();
         
-        $sql->select('id_mp_stock_type_movement')
-            ->select('name')
+        $sql->select('id_mp_stock_type_movement as id')
+            ->select('name as value')
             ->from('mp_stock_type_movement')
             ->where('id_lang='.(int)$this->id_lang)
             ->where('id_shop='.(int)$this->id_shop)
@@ -645,13 +492,6 @@ class AdminMpStockController extends ModuleAdminController
         if (!$result) {
             return array();
         }
-        array_unshift(
-            $result,
-            array(
-                'id_mp_stock_type_movement' => 0,
-                'name' => $this->l('Please select a stock movement'),
-            )
-        );
         return $result;
     }
     
@@ -914,6 +754,60 @@ class AdminMpStockController extends ModuleAdminController
     {
         $values = $this->getFeatureValues((int)Tools::getValue('id_feature'));        
         print Tools::jsonEncode($values);
+        exit();
+    }
+    
+    public function ajaxProcessGetProduct()
+    {
+        $term = Tools::getValue('term', '');
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('p.id_product')
+            ->select('p.reference')
+            ->select('pl.name')
+            ->from('product', '`p`')
+            ->innerJoin('product_lang', '`pl`', 'p.id_product=pl.id_product')
+            ->where('pl.id_lang='.(int)$this->id_lang)
+            ->where('p.reference like \''.pSQL($term).'%\' or pl.name like \'%'.pSQL($term).'%\'')
+            ->orderBy('pl.name');
+        $result = $db->executeS($sql);
+        if ($result) {
+            $output = array();
+            foreach ($result as $row) {
+                $output[] = array(
+                    'id' => $row['id_product'],
+                    'label' => $row['reference'].' - '.$row['name'],
+                    'value' => $row['name'],
+                );
+            }
+            print Tools::jsonEncode($output);
+        } else {
+            print Tools::jsonEncode(array());
+        }
+        exit();
+    }
+    
+    public function ajaxProcessGetProductCombinations()
+    {
+        $id_product = (int)Tools::getValue('id_product', 0);
+        if (!$id_product) {
+            print Tools::jsonEncode(
+                array(
+                    'result' => false,
+                    'html' => '',
+                )
+            );
+        } else {
+            require_once $this->module->getPath().'classes/ProductCombinations.php';
+            $combinations = new MpStockProductCombinations($this->module, $id_product, $this->getMovements());
+            $table = $combinations->display();
+            print Tools::jsonEncode(
+                array(
+                    'result' => true,
+                    'html' => $table,
+                )
+            );
+        }
         exit();
     }
     

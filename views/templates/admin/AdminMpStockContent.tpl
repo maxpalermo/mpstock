@@ -23,10 +23,17 @@
 *  International Registered Trademark & Property of PrestaShop SA
 *}
 
-<div class="panel-footer" style='height: 96px;'>
-    <button type="button" value="1" id="mpstock_submit" class="btn btn-default pull-right" style='text-align: center;'>
-        <i class="icon icon-2x icon-search" style='color: #88BB88; margin-bottom: 12px;'></i>
-        <br>
-        <span>{l s='Find movements' mod='mpstock'}</span>
-    </button>
+<div class="panel-body">
+    <div class="form-group">
+        <label class="control-label col-lg-3 required">{l s='Product' mod='mpstock'}</label>
+	<div class="col-lg-9">
+            <input type='text' name='input_id_product' id='input_id_product' class='input' style="width: 80%;">
+            <p class="help-block">
+                {l s='Insert product reference or product name' mod='mpstock'}
+            </p>							
+	</div>
+    </div>
+    <div class="form-group" id='div-table-content'>
+        
+    </div>
 </div>

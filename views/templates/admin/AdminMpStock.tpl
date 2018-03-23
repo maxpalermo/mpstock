@@ -22,7 +22,25 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<form method='POST' id="mpstock_productextra">
+<style>
+  .ui-autocomplete-loading 
+  {
+    background: white url("{$img_folder}ui-anim_basic_16x16.gif") right center no-repeat !important;
+  }
+  .ui-autocomplete 
+  {
+    max-height: 10em;
+    overflow-y: auto;
+    /* prevent horizontal scrollbar */
+    overflow-x: hidden;
+  }
+</style>
+
+<div id="growls" class="default">
+    <div class="growl-message">Dati salvati</div>
+</div>
+
+<form method='POST' id="mpstock_admin">
     <div class="panel">
         {include file=$header_form}
         {include file=$content_form}
@@ -32,43 +50,53 @@
         
     </div>
 </form>
-    <script type='text/javascript'>
+<script type='text/javascript'>
+    Number.prototype.formatMoney = function(c, d, t, cur){
+    var n = this, 
+        c = isNaN(c = Math.abs(c)) ? 2 : c, 
+        d = d == undefined ? "." : d, 
+        t = t == undefined ? "," : t, 
+        s = n < 0 ? "-" : "", 
+        i = String(parseInt(n = Math.abs(Number(n) || 0).toFixed(c))), 
+        j = (j = i.length) > 3 ? j % 3 : 0;
+        cur = cur == undefined ? "" : " " + cur;
+        return s + (j ? i.substr(0, j) + t : "") + i.substr(j).replace(/(\d{3})(?=\d)/g, "$1" + t) + (c ? d + Math.abs(n - i).toFixed(c).slice(2) : "") + cur;
+    };
     var current_page = {$page};
     var pagination = {$pagination};
     $(document).ready(function(){
-        $('#mpstock_productextra').validate();
-        $('#input_date_start').datepicker({ dateFormat: 'yy-mm-dd' });
-        $('#input_date_end').datepicker({ dateFormat: 'yy-mm-dd' });
+        $("#input_id_product").autocomplete({
+            source: function( request, response ) {
+                $.ajax({
+                    dataType: "json",
+                    data: 
+                    {
+                        ajax: true,
+                        action: 'GetProduct',
+                        term: request.term
+                    }
+                })
+                .success(function(data) {
+                    response(data);
+                })
+                .fail(function(){
+                    jAlert('AJAX FAIL');
+                });
+            },
+            minLength: 2,
+            select: function( event, ui ) {
+                event.preventDefault();
+                mpstock_getProductCombination(ui.item.id);
+            }
+        });
         
         $('#mpstock_submit').on('click', function(){
-            var search_in_orders = $('input[name="input_switch_search_in_orders"]:checked').val();
-            var search_in_slips = $('input[name="input_switch_search_in_slips"]:checked').val();
-            var search_in_movements = $('input[name="input_switch_search_in_movements"]:checked').val();
             var date_start = $('#input_date_start').val();
             var date_end = $('#input_date_end').val();
             
             $("#mpstock_submit i").removeClass('icon-search').addClass('process-icon-loading');
             
             $.ajax({
-                type: 'POST',
-                dataType: 'json',
-                useDefaultXhrHeader: false,
-                url: '{$module_link}',
-                data: 
-                {
-                    ajax: true,
-                    action: 'FindMovements',
-                    module_name: 'mpstock',
-                    class_name: 'MpStock',
-                    token: '{$module_token}',
-                    id_product: {$id_product},
-                    id_product_attribute: $('#select_combination').val(),
-                    id_employee: {$id_employee},
-                    date_start: date_start,
-                    date_end: date_end,
-                    pagination: pagination,
-                    current_page: current_page
-                }
             })
             .done(function(json){
                 if (json.result === true) {
@@ -109,10 +137,44 @@
         });
     });
     
-    function mpstock_export_selected()
+    function mpstock_getProductCombination(id_product)
     {
-        $('#helperlist-content table tbody input[type="checkbox"]:checked').each(function(){
-            var processedRow = mpstock_process_row($(this).closest('tr'));
+        $.ajax({
+            dataType: "json",
+            data: 
+            {
+                ajax: true,
+                action: 'GetProductCombinations',
+                id_product: id_product
+            }
+        })
+        .success(function(data) {
+            $('#div-table-content').html(data.html);
+            $('#div-table-content').on('click', 'button', function(){
+                let tr = $(this).closest('tr');
+                let row = 
+                    {
+                        id_product_attribute: String($(tr).find('td:nth-child(1)').text()).trim(),
+                        type_movement: $(tr).find('td:nth-child(2)').find('select').val(),
+                        reference: $(tr).find('td:nth-child(4)').find('input').val(),
+                        ean13: $(tr).find('td:nth-child(5)').find('input').val(),
+                        qty: $(tr).find('td:nth-child(6)').find('input').val(),
+                        price: $(tr).find('td:nth-child(7)').find('input').val(),
+                        tax_rate: $(tr).find('td:nth-child(8)').find('input').val()
+                    };
+                jAlert(JSON.stringify(row));
+            });
+            $('#div-table-content').on('blur', 'input', function(){
+                console.log("blur", this.name);
+                if (this.name === 'input_price[]') {
+                    this.value = Number(this.value).formatMoney(2, ',', '.', '€');
+                } else if (this.name === 'input_tax_rate[]') {
+                    this.value = Number(this.value).formatMoney(2, ',', '.', '%');
+                }
+            });
+        })
+        .fail(function(){
+            jAlert('AJAX FAIL');
         });
     }
     

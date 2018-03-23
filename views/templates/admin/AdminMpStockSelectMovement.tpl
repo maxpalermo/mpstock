@@ -23,10 +23,9 @@
 *  International Registered Trademark & Property of PrestaShop SA
 *}
 
-<div class="panel-footer" style='height: 96px;'>
-    <button type="button" value="1" id="mpstock_submit" class="btn btn-default pull-right" style='text-align: center;'>
-        <i class="icon icon-2x icon-search" style='color: #88BB88; margin-bottom: 12px;'></i>
-        <br>
-        <span>{l s='Find movements' mod='mpstock'}</span>
-    </button>
-</div>
+<select name="select_type_movement[]" class="select">
+    <option value='0'>{l s='None' mod='mpstock'}</option>
+    {foreach $select_stock_movements as $movement}
+        <option value='{$movement.id}'>{$movement.value}</option>
+    {/foreach}
+</select>

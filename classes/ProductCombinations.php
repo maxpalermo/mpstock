@@ -24,70 +24,99 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockProductExtraForm
+Class MpStockProductCombinations
 {
-    private $search_in_orders = true;
-    private $search_in_slips = true;
-    private $search_in_movements = true;
-    private $date_start = '';
-    private $date_end = '';
     private $context;
     private $id_lang;
     private $id_shop;
     private $id_product;
-    private $id_employee;
+    private $id_product_attribute;
     private $smarty;
     private $module;
-    private $module_token;
     private $combinations;
+    private $movements;
    
-    public function __construct($module, $params)
+    public function __construct($module, $id_product, $movements)
     {
         $this->context = Context::getContext();
         $this->smarty = $this->context->smarty;
         $this->id_lang = (int)$this->context->language->id;
         $this->id_shop = (int)$this->context->shop->id;
-        
-        $this->search_in_orders = (int)$params['search_in_orders'];
-        $this->search_in_slips = (int)$params['search_in_slips'];
-        $this->search_in_movements = (int)$params['search_in_movements'];
-        $this->date_start = $params['date_start'];
-        $this->date_end = $params['date_end'];
-        $this->id_product = (int)$params['id_product'];
-        $this->id_employee = (int)$params['id_employee'];
-        $this->module_token = $params['module_token'];
-        
+        $this->id_product = (int)$id_product;
+        $this->id_product_attribute= 0;
         $this->module = $module;
+        $this->movements = $movements;
     }
     
     public function display()
     {
         $this->getCombinations($this->id_product);
+        $rows = $this->prepareRows();
         $this->smarty->assign(
             array(
-                'search_in_orders' => $this->search_in_orders,
-                'search_in_slips' => $this->search_in_slips,
-                'search_in_movements' => $this->search_in_movements,
-                'date_start' => $this->date_start,
-                'date_end' => $this->date_end,
-                'tot_badge' => 0,
-                'header_form' => $this->module->getPath().'views/templates/admin/ProductExtraFormHeader.tpl',
-                'content_form' => $this->module->getPath().'views/templates/admin/ProductExtraFormContent.tpl',
-                'footer_form' => $this->module->getPath().'views/templates/admin/ProductExtraFormFooter.tpl',
-                'module_link' => $this->module->getUrl().'ajax.php',
                 'id_product' => $this->id_product,
-                'id_employee' => $this->id_employee,
-                'module_token' => $this->module_token,
-                'pagination' => 50,
-                'page' => 1,
-                'combinations' => $this->combinations,
+                'mpstock_rows' => $rows,
             )
         );
         
-        $form_path = $this->module->getPath().'/views/templates/admin/ProductExtraForm.tpl';
+        $form_path = $this->module->getPath().'/views/templates/admin/AdminMpStockTableCombinations.tpl';
         $form = $this->smarty->fetch($form_path);
         
         return $form;
+    }
+    
+    public function prepareRows()
+    {
+        $db = Db::getInstance();
+        $rows = array();
+        foreach ($this->combinations as $combination) {
+            $sql = new DbQueryCore();
+            $sql->select('*')
+                ->from('product_attribute')
+                ->where('id_product_attribute='.(int)$combination['id']);
+            $result = $db->executeS($sql);
+            if ($result) {
+                foreach ($result as $row) {
+                    $out = array(
+                        'id_product_attribute' => $combination['id'],
+                        'select_movement' => $this->getSelectMovement($this->movements),
+                        'name' => $combination['value'],
+                        'input_reference' => $this->getInput('input_reference[]', $row['reference']),
+                        'input_ean13' => $this->getInput('input_ean13[]', $row['ean13']),
+                        'input_qty' => $this->getInput('input_qty[]', 0, 'right', 'sm'),
+                        'input_price' => $this->getInput('input_price[]', Tools::displayPrice($row['price']), 'right', 'sm'),
+                        'input_tax_rate' => $this->getInput('input_tax_rate[]', 0, 'right', 'sm'),
+                    );
+                }
+                $rows[] = $out;
+            }
+        }
+        return $rows;
+    }
+    
+    public function getInput($name, $value, $align='left', $size='md' )
+    {
+        $this->smarty->assign(
+            array(
+                'input_name' => $name,
+                'input_value' => $value,
+                'input_text_align' => $align,
+                'input_text_size' => $size,
+            )
+        );
+        $path = $this->module->getPath().'views/templates/admin/AdminMpStockInputGeneric.tpl';
+        return $this->smarty->fetch($path);
+    }
+    
+    public function getSelectMovement($movements)
+    {
+        $this->smarty->assign(
+            array(
+                'select_stock_movements' => $movements
+            )
+        );
+        $path = $this->module->getPath().'views/templates/admin/AdminMpStockSelectMovement.tpl';
+        return $this->smarty->fetch($path);
     }
     
     public function getCombinations($id_product)
