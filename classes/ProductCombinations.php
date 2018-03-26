@@ -48,7 +48,7 @@ Class MpStockProductCombinations
         $this->movements = $movements;
     }
     
-    public function display()
+    public function display($output_mode)
     {
         $this->getCombinations($this->id_product);
         $rows = $this->prepareRows();
@@ -59,9 +59,13 @@ Class MpStockProductCombinations
             )
         );
         
-        $form_path = $this->module->getPath().'/views/templates/admin/AdminMpStockTableCombinations.tpl';
-        $form = $this->smarty->fetch($form_path);
+        if ($output_mode == 'table') {
+            $form_path = $this->module->getPath().'/views/templates/admin/AdminMpStockTableCombinations.tpl';
+        } elseif ($output_mode == 'select') {
+            $form_path = $this->module->getPath().'/views/templates/admin/AdminMpStockSelectCombinations.tpl';
+        }
         
+        $form = $this->smarty->fetch($form_path);
         return $form;
     }
     

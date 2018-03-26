@@ -24,7 +24,7 @@
 *}
 
 <select name="select_type_movement[]" class="select">
-    <option value='0'>{l s='None' mod='mpstock'}</option>
+    <option value='0-0-0'>{l s='None' mod='mpstock'}</option>
     {foreach $select_stock_movements as $movement}
         <option value='{$movement.id}'>{$movement.value}</option>
     {/foreach}

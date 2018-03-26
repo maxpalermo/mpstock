@@ -23,22 +23,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 *}
 
-<div class="panel-body">
-    <div class="form-group">
-        <label class="control-label col-lg-1 required text-right">{l s='Product' mod='mpstock'}</label>
-	<div class="col-lg-9">
-            <input type='text' name='input_id_product' id='input_id_product' class='input' style="width: 80%;">
-            <p class="help-block">
-                {l s='Insert product reference or product name' mod='mpstock'}
-            </p>							
-	</div>
-    </div>
-    <br>
-    <div class="form-group" id='mpstock_transform'>
-        {include file=$transform_form}
-    </div>
-    <br>
-    <div class="form-group" id='div-table-content'>
-        
-    </div>
-</div>
+<option value='0'>{l s='Please select a combination' mod='mpstock'}
+{foreach $mpstock_rows as $row}
+    <option value='{$row.id_product_attribute}'>{$row.name}</option>
+{/foreach}

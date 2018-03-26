@@ -36,6 +36,7 @@
                 <th class="text-center">{l s='Price' mod='mpstock'}</th>
                 <th class="text-center">{l s='Tax rate' mod='mpstock'}</th>
                 <th class="text-center">{l s='Action' mod='mpstock'}</th>
+                <th class="text-center">{l s='Status' mod='mpstock'}</th>
             </tr>
         </thead>
         <tbody>
@@ -54,6 +55,7 @@
                             <i class='icon icon-save'></i>
                         </button>
                     </td>
+                    <td class="text-center"><i class='icon icon-pencil-square-o'></i></td>
                 </tr>
             {/foreach}	
         </tbody>

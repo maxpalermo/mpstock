@@ -100,6 +100,7 @@ class AdminMpStockController extends ModuleAdminController
                 'header_form' => $this->module->getPath().'views/templates/admin/AdminMpStockHeader.tpl',
                 'content_form' => $this->module->getPath().'views/templates/admin/AdminMpStockContent.tpl',
                 'footer_form' => $this->module->getPath().'views/templates/admin/AdminMpStockFooter.tpl',
+                'transform_form' => $this->module->getPath().'views/templates/admin/AdminMpStockTransform.tpl',
                 'tot_badge' => 0,
                 'page' => 0,
                 'pagination' => 0,
@@ -454,6 +455,7 @@ class AdminMpStockController extends ModuleAdminController
     
     private function initScript()
     {
+        Context::getContext()->controller->addJqueryPlugin('growl');
         $this->smarty->assign(
             array(
                 'token' => Tools::getAdminTokenLite($this->className),
@@ -482,7 +484,7 @@ class AdminMpStockController extends ModuleAdminController
         $db = Db::getInstance();
         $sql = new DbQueryCore();
         
-        $sql->select('id_mp_stock_type_movement as id')
+        $sql->select('CONCAT(id_mp_stock_type_movement,\'-\',exchange, \'-\', sign) as id')
             ->select('name as value')
             ->from('mp_stock_type_movement')
             ->where('id_lang='.(int)$this->id_lang)
@@ -790,6 +792,7 @@ class AdminMpStockController extends ModuleAdminController
     public function ajaxProcessGetProductCombinations()
     {
         $id_product = (int)Tools::getValue('id_product', 0);
+        $output_mode = Tools::getValue('output', 'table');
         if (!$id_product) {
             print Tools::jsonEncode(
                 array(
@@ -800,7 +803,7 @@ class AdminMpStockController extends ModuleAdminController
         } else {
             require_once $this->module->getPath().'classes/ProductCombinations.php';
             $combinations = new MpStockProductCombinations($this->module, $id_product, $this->getMovements());
-            $table = $combinations->display();
+            $table = $combinations->display($output_mode);
             print Tools::jsonEncode(
                 array(
                     'result' => true,
@@ -897,22 +900,44 @@ class AdminMpStockController extends ModuleAdminController
     public function ajaxProcessUpdateMovement()
     {
         $this->errors = array();
-        $par = $this->getParameters();
-        if (!$par) {
+        $row = Tools::getValue('row', null);
+        if (empty(row)) {
             print Tools::jsonEncode(
                 array(
                     'result' => false,
-                    'error_msg' => $this->l('Parameters not valid.'),
+                    'msg_error' => $this->l('Invalid row'),
+                )
+            );
+            exit();
+        }
+        $stock = new MpStockClassObject();
+        $stock->id_mp_stock_exchange = $row['exchange'];
+        $stock->id_shop = $this->id_shop;
+        $stock->id_product = $row['id_product'];
+        $stock->id_product_attribute = $row['id_product_attribute'];
+        $stock->id_mp_stock_type_movement = $row['type_movement'];
+        $stock->qty = $row['qty'];
+        $stock->price = $row['price'];
+        $stock->tax_rate = $row['tax_rate'];
+        $stock->date_add = date('Ymdhis');
+        $stock->id_employee = $this->id_employee;
+        
+        if ($stock->save()) {
+            print Tools::jsonEncode(
+                array(
+                    'result' => true,
+                    'row' => print_r($row, 1),
+                )
+            );
+        } else {
+            print Tools::jsonEncode(
+                array(
+                    'result' => false,
+                    'msg_error' => Db::getInstance()->getMsgError(),
                 )
             );
         }
         
-        if ((int)$par['input_text_id']) {
-            $result = $this->insertMovement(0, (int)$par['input_text_id']);
-        } else {
-            $result = $this->insertMovement();
-        }
-        print Tools::jsonEncode($result);
         exit();
     }
     
