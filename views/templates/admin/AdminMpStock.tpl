@@ -378,7 +378,7 @@
             {
                 index: $(tr).index(),
                 id_product: id_product,
-                id_product_attribute: id_product_attribute
+                id_product_attribute: id_product_attribute,
                 type_movement: id_movement[0],
                 exchange: id_movement[1],
                 sign: -id_movement[2],

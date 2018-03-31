@@ -17,11 +17,59 @@
 * versions in the future. If you wish to customize PrestaShop for your
 * needs please refer to http://www.prestashop.com for more information.
 *
-*  @author    PrestaShop SA <contact@prestashop.com>
-*  @copyright 2007-2018 PrestaShop SA
+*  @author    Massimiliano Palermo <info@mpsoft.it>
+*  @copyright 2007-2018 Digital Solutions®
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
-*
-* Don't forget to prefix your containers with your own identifier
-* to avoid any conflicts with others containers.
-*/
+**/
+
+function importXML()
+{
+    $('body').append(
+        $('<input/>')
+            .attr('type', 'file')
+            .attr('name', 'inputFileXML')
+            .attr('accept', '.xml')
+            .on('change', function(){
+                var data = new FormData();
+                data.append(
+                    'inputFileXML',
+                    this.files[0]
+                );
+                ajaxImportXML(data);
+            })
+    );
+    
+    $('input[name="inputFileXML"]').click();
+    
+}
+
+function ajaxImportXML(data)
+{
+    data.append('ajax', true);
+    data.append('action', 'ImportXML');
+    $.ajax({
+        type: 'POST',
+        dataType: 'json',
+        useDefaultXhrHeader: false,
+        processData: false,
+        contentType: false,
+        data: data
+    })
+    .done(function(result){
+        console.log("RESULT:\n", result);
+        result.forEach(function(item, index){
+            if(item.error !== 'undefined') {
+                $.growl.error(
+                {
+                    message: item.error,
+                    title: item.reference
+                });
+            }
+        });
+        $('input[name="inputFileXML"]').remove();
+    })
+    .fail(function(){
+        jAlert("AJAX ERROR");
+    });
+}

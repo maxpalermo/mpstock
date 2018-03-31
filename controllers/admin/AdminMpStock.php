@@ -434,6 +434,10 @@ class AdminMpStockController extends ModuleAdminController
                 'href' => '',
                 'desc' => $this->l('New movement'),
             ),
+            'upload' => array(
+                'href' => 'javascript:importXML();',
+                'desc' => $this->l('Import XML'),
+            ),
             'terminal' => array(
                 'href' => '',
                 'desc' => $this->l('Print report'),
@@ -469,14 +473,18 @@ class AdminMpStockController extends ModuleAdminController
     
     public function setMedia()
     {
-        parent::setMedia();
-        $this->addJqueryUI('ui.dialog');
-        $this->addJqueryUI('ui.progressbar');
-        $this->addJqueryUI('ui.draggable');
-        $this->addJqueryUI('ui.effect');
-        $this->addJqueryUI('ui.effect-slide');
-        $this->addJqueryUI('ui.effect-fold');
-        $this->addJqueryUI('ui.autocomplete');
+        if (Tools::getValue('controller') == $this->className) {
+            parent::setMedia();
+            $this->addJqueryUI('ui.dialog');
+            $this->addJqueryUI('ui.progressbar');
+            $this->addJqueryUI('ui.draggable');
+            $this->addJqueryUI('ui.effect');
+            $this->addJqueryUI('ui.effect-slide');
+            $this->addJqueryUI('ui.effect-fold');
+            $this->addJqueryUI('ui.autocomplete');
+            $this->addJqueryPlugin('growl');
+            $this->addJS($this->module->getPath().'views/js/back.js');
+        }
     }
     
     public function getMovements()
@@ -750,6 +758,84 @@ class AdminMpStockController extends ModuleAdminController
         }
         
         return '<strong style="color: ' . $color . ';">' . $id_product . '</strong>';
+    }
+    
+    public function getProductByEan13($ean13, $reference)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('pa.id_product')
+            ->select('pa.id_product_attribute')
+            ->select('pa.price')
+            ->select('t.rate as tax_rate')
+            ->from('product_attribute', 'pa')
+            ->innerJoin('product', 'p', 'p.id_product=pa.id_product')
+            ->innerJoin('tax_rule', 'tr', 'tr.id_tax_rules_group=p.id_tax_rules_group')
+            ->innerJoin('tax', 't', 't.id_tax=tr.id_tax')
+            ->where('pa.reference=\''.pSQL($reference).'\'')
+            ->where('pa.ean13=\''.pSQL($ean13).'\'');
+        $product = $db->getRow($sql);
+        return $product;
+    }
+    
+    public function ajaxProcessImportXML()
+    {
+        $file = Tools::fileAttachment('inputFileXML');
+        $output = array();
+        $json = array();
+        if ($file['content']) {
+            $xml = simplexml_load_string($file['content']);
+            $sign = (string)$xml->Movement_Type=='load'?1:-1;
+            $date = (string)$xml->Movement_Date;
+            $rows = $xml->rows;
+            //$output['xml'] = $rows;
+            foreach ($rows->children() as $row) {
+                $ean13 = (string)$row->ean13;
+                $reference= (string)$row->reference;
+                $qty = (string)$row->qty * $sign;
+                $output[] = array(
+                    'ean13' => $ean13,
+                    'reference' => $reference,
+                    'qty' => $qty,
+                );
+            }
+            foreach ($output as $row) {
+                $ean13 = trim($row['ean13']);
+                if (empty($ean13)) {
+                    $json[] = array(
+                        'reference' => $row['reference'],
+                        'error' => $this->l('Ean13 not valid.'),
+                    );
+                    continue;
+                }
+                $product = $this->getProductByEan13($ean13);
+                if (!$product) {
+                    $json[] = array(
+                        'reference' => $row['reference'],
+                        'error' => sprintf($this->l('Combination with ean13 %s not found.'), $ean13),
+                    );
+                    continue;
+                }
+                $stock = new MpStockClassObject();
+                $stock->id = 0;
+                $stock->id_mp_stock_type_movement = 0;
+                $stock->id_mp_stock_exchange = 0;
+                $stock->id_product = $product['id_product'];
+                $stock->id_product_attribute = $product['id_product_attribute'];
+                $stock->qty = $row['qty'];
+                $stock->price = $product['price'];
+                $stock->tax_rate = $product['tax_rate'];
+                $stock->id_lang = $this->id_lang;
+                $stock->id_shop = $this->id_shop;
+                $stock->id_employee = $this->id_employee;
+                $stock->date_add = date('Y-m-d H:i:s');
+                
+                $json[$reference] = $product;
+            }
+       
+            print Tools::jsonEncode($json);
+        }
+        exit();
     }
     
     public function ajaxProcessGetFeatureValue()
