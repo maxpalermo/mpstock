@@ -26,16 +26,36 @@
 
 Class MpStockClassObject extends ObjectModelCore
 {
+    /** @var bool if set, movement has another product */
+    public $id_mp_stock_exchange;
+    /** @var int product id */
+    public $id_product;
+    /** @var int product attribute id */
+    public $id_product_attribute;
+    /** @var int type movement from table mp_stock_type movements, 0 if movement has imported */
+    public $id_mp_stock_type_movement;
+    /** @var int product quantity */
+    public $qty;
+    /** @var float product price */
+    public $price;
+    /** @var float product tax rate */
+    public $tax_rate;
+    /** @var date if movement has imported, set the date of file xml */
+    public $date_movement;
+    /** @var timestamp of inserted movement */
+    public $date_add;
+    /** @var int reference to employee */
+    public $id_employee;
+    /** @var int reference to shop */
+    public $id_shop;
+    /** @var int reference to language */
+    public $id_lang;
+    
     public static $definition = array(
         'table' => 'mp_stock',
         'primary' => 'id_mp_stock',
         'multilang' => false,
         'fields' => array(
-            'id_mp_stock' => array(
-                'type' => self::TYPE_INT,
-                'validate' => 'isUnsignedId',
-                'required' => 'true',
-            ),
             'id_mp_stock_exchange' => array(
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedId',
@@ -76,6 +96,11 @@ Class MpStockClassObject extends ObjectModelCore
                 'validate' => 'isFloat',
                 'required' => 'true',
             ),
+            'date_movement' => array(
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
+                'required' => 'false',
+            ),
             'date_add' => array(
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
@@ -89,19 +114,6 @@ Class MpStockClassObject extends ObjectModelCore
         ),
     );
     
-    public $id_mp_stock;
-    public $id_mp_stock_exchange;
-    public $id_product;
-    public $id_product_attribute;
-    public $id_mp_stock_type_movement;
-    public $qty;
-    public $price;
-    public $tax_rate;
-    public $date_add;
-    public $id_employee;
-    public $id_shop;
-    public $id_lang;
-    
     public function __construct($id = null, $id_lang = null, $id_shop = null) {
         if (!$id_shop) {
             $this->id_shop = (int)Context::getContext()->shop->id;
@@ -114,11 +126,6 @@ Class MpStockClassObject extends ObjectModelCore
             $this->id_lang = (int)$id_lang;
         }
         parent::__construct($id, $this->id_lang, $this->id_shop);
-    }
-    
-    public function save($null_values = false, $auto_date = true) {
-        $this->id_mp_stock = $this->id;
-        return parent::save($null_values, $auto_date);
     }
     
     /**

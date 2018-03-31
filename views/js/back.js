@@ -25,6 +25,7 @@
 
 function importXML()
 {
+    $('.module_confirmation').remove();
     $('body').append(
         $('<input/>')
             .attr('type', 'file')
@@ -57,15 +58,12 @@ function ajaxImportXML(data)
         data: data
     })
     .done(function(result){
-        console.log("RESULT:\n", result);
         result.forEach(function(item, index){
-            if(item.error !== 'undefined') {
-                $.growl.error(
-                {
-                    message: item.error,
-                    title: item.reference
-                });
-            }
+            if(item.error !== 0) {
+                $('#form-mp_stock').prepend(item.error);
+            } else {
+                $('#form-mp_stock').prepend(item.confirmation);
+            }   
         });
         $('input[name="inputFileXML"]').remove();
     })
