@@ -633,7 +633,7 @@ class AdminMpStockController extends ModuleAdminController
                 $result,
                 array(
                     'id_feature_value' => 0,
-                    'name' => $this-l('Select a feature value'),
+                    'name' => $this->l('Select a feature value'),
                 )
             );
             return array();
@@ -861,7 +861,7 @@ class AdminMpStockController extends ModuleAdminController
             print Tools::jsonEncode(
                 array(
                     'result' => false,
-                    'error_msg' => $this-l('Movement type not valid.'),
+                    'error_msg' => $this->l('Movement type not valid.'),
                 )
             );
             exit();
@@ -901,7 +901,7 @@ class AdminMpStockController extends ModuleAdminController
     {
         $this->errors = array();
         $row = Tools::getValue('row', null);
-        if (empty(row)) {
+        if (empty($row)) {
             print Tools::jsonEncode(
                 array(
                     'result' => false,
@@ -911,6 +911,7 @@ class AdminMpStockController extends ModuleAdminController
             exit();
         }
         $stock = new MpStockClassObject();
+        $stock->id_mp_stock = 0;
         $stock->id_mp_stock_exchange = $row['exchange'];
         $stock->id_shop = $this->id_shop;
         $stock->id_product = $row['id_product'];
@@ -922,21 +923,37 @@ class AdminMpStockController extends ModuleAdminController
         $stock->date_add = date('Ymdhis');
         $stock->id_employee = $this->id_employee;
         
-        if ($stock->save()) {
-            print Tools::jsonEncode(
-                array(
-                    'result' => true,
-                    'row' => print_r($row, 1),
-                )
-            );
-        } else {
+        try {
+            if ($stock->save()) {
+                print Tools::jsonEncode(
+                    array(
+                        'result' => true,
+                        'row' => print_r($row, 1),
+                    )
+                );
+            } else {
+                print Tools::jsonEncode(
+                    array(
+                        'result' => false,
+                        'msg_error' => Db::getInstance()->getMsgError(),
+                    )
+                );
+            }
+        } catch (Exception $ex) {
             print Tools::jsonEncode(
                 array(
                     'result' => false,
-                    'msg_error' => Db::getInstance()->getMsgError(),
+                    'msg_error' => $ex->getMessage(),
+                    'class' => print_r(
+                        array(
+                            'price' => $stock->price,
+                        ),
+                        1
+                    ),
                 )
             );
         }
+            
         
         exit();
     }

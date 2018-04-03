@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockClassObject extends ObjectModelCore
+class MpStockClassObject extends ObjectModelCore
 {
     public static $definition = array(
         'table' => 'mp_stock',
@@ -102,7 +102,8 @@ Class MpStockClassObject extends ObjectModelCore
     public $id_shop;
     public $id_lang;
     
-    public function __construct($id = null, $id_lang = null, $id_shop = null) {
+    public function __construct($id = null, $id_lang = null, $id_shop = null)
+    {
         if (!$id_shop) {
             $this->id_shop = (int)Context::getContext()->shop->id;
         } else {
@@ -113,30 +114,27 @@ Class MpStockClassObject extends ObjectModelCore
         } else {
             $this->id_lang = (int)$id_lang;
         }
+        if (empty($id)) {
+            $this->id = 0;
+            $this->id_mp_stock = 0;
+            $id =0;
+        }
         parent::__construct($id, $this->id_lang, $this->id_shop);
     }
     
-    public function save($null_values = false, $auto_date = true) {
+    public function save($null_values = false, $auto_date = true)
+    {
         $this->id_mp_stock = $this->id;
         return parent::save($null_values, $auto_date);
     }
     
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
     protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
     {
         if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
+            $class = Tools::substr(get_class($this), 0, -10);
+        } elseif (Tools::strtolower(Tools::substr($class, -10)) == 'controller') {
             /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
+            $class = Tools::substr($class, 0, -10);
         }
         return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
@@ -356,7 +354,8 @@ Class MpStockClassObject extends ObjectModelCore
         }
     }
     
-    public static function updateStock($id_stock_available, $qty) {
+    public static function updateStock($id_stock_available, $qty)
+    {
         $stock = new StockAvailableCore($id_stock_available);
         $stock->quantity = $stock->quantity + $qty;
         return $stock->update();

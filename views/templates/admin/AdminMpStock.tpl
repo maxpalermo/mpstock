@@ -123,6 +123,22 @@
         cur = cur === undefined ? "" : " " + cur;
         return s + (j ? i.substr(0, j) + t : "") + i.substr(j).replace(/(\d{3})(?=\d)/g, "$1" + t) + (c ? d + Math.abs(n - i).toFixed(c).slice(2) : "") + cur;
     };
+    String.prototype.formatNumber = function() {
+        var n = this;
+        
+        if (String(n).indexOf('€')>-1 || String(n).indexOf('%')>-1 || String(n).indexOf('$')>-1)
+        {
+            n = String(n).slice(0, -2);
+        }
+        if (isNaN(Number(n))) {
+            n = String(n).replace(',', '.');
+        }
+        if (isNaN(Number(n))) {
+            n = String(n).replace('.', ',');
+        }
+        
+        return n;
+    };
     
     $(document).ready(function(){
         /**
@@ -157,23 +173,7 @@
          * Save Stock transformation movement
          */
         $('#mpstock_submit_transform').on('click', function(){
-            let status = mpstock_InsertStockMovementTransformation();
-            $('#mpstock_transform').fadeOut(300);
-            if (status) {
-                $.growl.notice({
-                        title: "",
-                        size: "large",
-                        message: "{l s='Stock tranformation movement saved.' mod='mpstock'}"
-                });
-                $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-ok-sign').css({ color: '#88BB88' });
-            } else {
-                $.growl.error({
-                        title: "",
-                        size: "large",
-                        message: "{l s='Error saving stock transformation movement.' mod='mpstock'}"
-                });
-                $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-times').css({ color: '#BB5555' });
-            }
+            mpstock_InsertStockMovementTransformation();
         });
         /**
          * Lookig for a product
@@ -237,8 +237,8 @@
                         reference: $(tr).find('td:nth-child(4)').find('input').val(),
                         ean13: $(tr).find('td:nth-child(5)').find('input').val(),
                         qty: Number($(tr).find('td:nth-child(6)').find('input').val()),
-                        price: $(tr).find('td:nth-child(7)').find('input').val(),
-                        tax_rate: $(tr).find('td:nth-child(8)').find('input').val()
+                        price: String($(tr).find('td:nth-child(7)').find('input').val()).formatNumber(),
+                        tax_rate: String($(tr).find('td:nth-child(8)').find('input').val()).formatNumber()
                     };
                 
                 if (row.qty === 0) {
@@ -252,33 +252,9 @@
                 /**
                 * SAVE PROCEDURE
                 **/
-                
-                let status = mpstock_InsertMovement(row);
-                if (status) {
-                    $.growl.notice({
-                        title: "",
-                        size: "large",
-                        message: "{l s='Stock movement saved.' mod='mpstock'}"
-                    });
-                    
-                    if (Number(row.exchange) === 1) {
-                        current_id_product_transformation = 0;
-                        $('#input_id_product_transform').val('');
-                        $('#input_select_transform').html('');
-                        $('#input_id_product_transform_qty').val(row.qty);
-                        $("#mpstock_transform").fadeIn().find('input[name="input_id_product_transform"]').focus();
-                    } else {
-                        $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-ok-sign').css({ color: '#88BB88' });
-                    }
-                } else {
-                    $.growl.error({
-                        title: "",
-                        size: "large",
-                        message: "{l s='Error saving stock movement.' mod='mpstock'}"
-                    });
-                    $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-times').css({ color: '#BB5555' });
-                }
+                mpstock_InsertMovement();
             });
+            
             $('#div-table-content').on('blur', 'input', function(){
                 console.log("blur", this.name);
                 if (this.name === 'input_price[]') {
@@ -318,7 +294,7 @@
         });
     }
     
-    function mpstock_InsertMovement()
+    function mpstock_InsertMovement(transformation = false)
     {
         $.ajax({
             dataType: "json",
@@ -330,13 +306,47 @@
             }
         })
         .success(function(data) {
-            console.log(data.row);
-            return data.result;
+            console.log('Movement inserted:', data.result);
+            if (data.result) {
+                if (transformation) {
+                    mpstock_FinalizeMovementTransformation(data.result);
+                } else {
+                    mpstock_FinalizeMovement(data.result);
+                }
+            }
         })
         .fail(function(){
             jAlert('AJAX FAIL');
             return false;
         });
+    }
+    
+    function mpstock_FinalizeMovement(status)
+    {
+        if (status) {
+            $.growl.notice({
+                title: "",
+                size: "large",
+                message: "{l s='Stock movement saved.' mod='mpstock'}"
+            });
+
+            if (Number(row.exchange) === 1) {
+                current_id_product_transformation = 0;
+                $('#input_id_product_transform').val('');
+                $('#input_select_transform').html('');
+                $('#input_id_product_transform_qty').val(row.qty);
+                $("#mpstock_transform").fadeIn().find('input[name="input_id_product_transform"]').focus();
+            } else {
+                $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-ok-sign').css({ color: '#88BB88' });
+            }
+        } else {
+            $.growl.error({
+                title: "",
+                size: "large",
+                message: "{l s='Error saving stock movement.' mod='mpstock'}"
+            });
+            $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-times').css({ color: '#BB5555' });
+        }
     }
     
     function mpstock_InsertStockMovementTransformation()
@@ -378,7 +388,7 @@
             {
                 index: $(tr).index(),
                 id_product: id_product,
-                id_product_attribute: id_product_attribute
+                id_product_attribute: id_product_attribute,
                 type_movement: id_movement[0],
                 exchange: id_movement[1],
                 sign: -id_movement[2],
@@ -389,7 +399,28 @@
                 tax_rate: 0
             };
             
-        return mpstock_InsertMovement(row);
+        return mpstock_InsertMovement(true);
+        $('#mpstock_transform').fadeOut(300);
+    }
+    
+    function mpstock_FinalizeMovementTransformation(status)
+    {
+        if (status) {
+            $.growl.notice({
+                    title: "",
+                    size: "large",
+                    message: "{l s='Stock tranformation movement saved.' mod='mpstock'}"
+            });
+            $('#mpstock_transform').fadeOut();
+            $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-ok-sign').css({ color: '#88BB88' });
+        } else {
+            $.growl.error({
+                    title: "",
+                    size: "large",
+                    message: "{l s='Error saving stock transformation movement.' mod='mpstock'}"
+            });
+            $(tr).find('td:nth-child(10)').find('i').removeClass('icon-pencil-square-o').addClass('icon-times').css({ color: '#BB5555' });
+        }
     }
     
     function mpstock_process_row(row)
