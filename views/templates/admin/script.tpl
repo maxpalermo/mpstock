@@ -55,12 +55,21 @@
     });
     $(document).ready(function(){
         /**
+         * REPLACING DELETE BUTTON
+         */
+        $('table.mp_stock>tbody>tr').each(function(){
+            var idx = $(this).index();
+            var id_movement = $(this).find('td:nth-child(1) input').val();
+            var td = $(this).find('td:nth-child(11)');
+            var a = $(td).find('a');
+            $(a).attr('href', 'javascript:deleteMovement('+id_movement+','+idx+')').removeAttr('onclick');
+        });
+        /**
          * RESIZING SELECT
          */
         $('.chosen-container').width(400);
         $('#input_select_type_movements').on('change', function(event){
             event.preventDefault();
-            
         });
         /**
          * SELECT PRODUCT ATTRIBUTE ON CHANGE

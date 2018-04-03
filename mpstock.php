@@ -28,8 +28,8 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-require_once _PS_MODULE_DIR_ . 'mpstock/classes/mpstockmovement.class.php';
-require_once _PS_MODULE_DIR_ . 'mpstock/classes/mpstocklist.class.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockMovementClassObject.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockHelperObject.php';
 
 class MpStock extends Module
 {
@@ -78,9 +78,8 @@ class MpStock extends Module
      */
     public function install()
     {
-        include dirname(__FILE__) . '/sql/install.php';
-        
         return parent::install() &&
+            $this->installSQL() &&
             $this->registerHook('header') &&
             $this->registerHook('backOfficeHeader') &&
             $this->registerHook('displayAdminProductsExtra') &&
@@ -92,6 +91,78 @@ class MpStock extends Module
     {
         return parent::uninstall() && 
             $this->uninstallTab($this->adminClassName);
+    }
+    
+    public function installSQL()
+    {
+        $sql = array();
+
+        $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock` (
+            `id_mp_stock` int(11) NOT NULL AUTO_INCREMENT,
+            `id_mp_stock_exchange` int(11) NOT NULL,
+            `id_shop` int(11) NOT NULL,
+            `id_product` int(11) NOT NULL,
+            `id_product_attribute` int(11) NOT NULL,
+            `id_mp_stock_type_movement` int(11) NOT NULL,
+            `qty` varchar(10) NOT NULL,
+            `price` decimal(20,6) NOT NULL,
+            `tax_rate` decimal(20,6) NOT NULL,
+            `date_movement` date NULL,
+            `sign` int(11) NOT NULL,
+            `date_add` timestamp NOT NULL,
+            `id_employee` int NOT NULL,
+            PRIMARY KEY  (`id_mp_stock`)
+        ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
+        
+        $sql[] = "ALTER TABLE `"._DB_PREFIX_."mp_stock` 
+            ADD UNIQUE `idx_import_unique` (
+            `id_product`, 
+            `id_product_attribute`, 
+            `date_movement`
+        );";
+        
+        $sql[] = "ALTER TABLE `"._DB_PASSWD_."mp_stock` ADD UNIQUE `idx_import_unique` ("
+            . "`id_product`,"
+            . "`id_product_attribute`,"
+            . "`date_movement`,"
+            . "`sign`"
+            . ") USING BTREE;";
+        
+        $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock_type_movement` (
+            `id_mp_stock_type_movement` int(11) NOT NULL AUTO_INCREMENT,
+            `id_lang` int(11) NOT NULL,
+            `id_shop` int(11) NOT NULL,
+            `name` varchar(255) NOT NULL,
+            `sign` enum('-1','1') NOT NULL DEFAULT '1',
+            `exchange` boolean NOT NULL,
+            PRIMARY KEY  (`id_mp_stock_type_movement`)
+        ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
+
+        $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock_list_movements` (
+            `id_mp_stock_list_movements` int(11) NOT NULL AUTO_INCREMENT,
+            `id_employee_bo` int(11) NOT NULL,
+            `id_product` int(11) NOT NULL,
+            `id_product_attribute` int(11) NOT NULL,
+            `idx` int(11) NOT NULL,
+            `image_url` varchar(255) NULL,
+            `reference` varchar(255) NULL,
+            `name` varchar(255) NULL,
+            `qty` int(11) NOT NULL,
+            `type_movement` varchar(255) NOT NULL,
+            `date_add` date NOT NULL,
+            `id_employee_movement` int(11) NOT NULL,
+            `employee` varchar(255) NULL,
+            PRIMARY KEY  (`id_mp_stock_list_movements`)
+        ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
+
+        foreach ($sql as $query) {
+            if (Db::getInstance()->execute($query) == false) {
+                $this->_errors[] = Db::getInstance()->getMsgError();
+                return false;
+            }
+        }
+        
+        return true;
     }
     
     /**

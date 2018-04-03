@@ -24,18 +24,40 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-class MpStockClassObject extends ObjectModelCore
+Class MpStockClassObject extends ObjectModelCore
 {
+    /** @var bool if set, movement has another product */
+    public $id_mp_stock_exchange;
+    /** @var int product id */
+    public $id_product;
+    /** @var int product attribute id */
+    public $id_product_attribute;
+    /** @var int type movement from table mp_stock_type movements, 0 if movement has imported */
+    public $id_mp_stock_type_movement;
+    /** @var int product quantity */
+    public $qty;
+    /** @var float product price */
+    public $price;
+    /** @var float product tax rate */
+    public $tax_rate;
+    /** @var date if movement has imported, set the date of file xml */
+    public $date_movement;
+    /** @var int sign of inserted movement */
+    public $sign;
+    /** @var timestamp of inserted movement */
+    public $date_add;
+    /** @var int reference to employee */
+    public $id_employee;
+    /** @var int reference to shop */
+    public $id_shop;
+    /** @var int reference to language */
+    public $id_lang;
+    
     public static $definition = array(
         'table' => 'mp_stock',
         'primary' => 'id_mp_stock',
         'multilang' => false,
         'fields' => array(
-            'id_mp_stock' => array(
-                'type' => self::TYPE_INT,
-                'validate' => 'isUnsignedId',
-                'required' => 'true',
-            ),
             'id_mp_stock_exchange' => array(
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedId',
@@ -76,6 +98,16 @@ class MpStockClassObject extends ObjectModelCore
                 'validate' => 'isFloat',
                 'required' => 'true',
             ),
+            'date_movement' => array(
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
+                'required' => 'false',
+            ),
+            'sign' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isInt',
+                'required' => 'true',
+            ),
             'date_add' => array(
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
@@ -89,21 +121,7 @@ class MpStockClassObject extends ObjectModelCore
         ),
     );
     
-    public $id_mp_stock;
-    public $id_mp_stock_exchange;
-    public $id_product;
-    public $id_product_attribute;
-    public $id_mp_stock_type_movement;
-    public $qty;
-    public $price;
-    public $tax_rate;
-    public $date_add;
-    public $id_employee;
-    public $id_shop;
-    public $id_lang;
-    
-    public function __construct($id = null, $id_lang = null, $id_shop = null)
-    {
+    public function __construct($id = null, $id_lang = null, $id_shop = null) {
         if (!$id_shop) {
             $this->id_shop = (int)Context::getContext()->shop->id;
         } else {
@@ -114,27 +132,25 @@ class MpStockClassObject extends ObjectModelCore
         } else {
             $this->id_lang = (int)$id_lang;
         }
-        if (empty($id)) {
-            $this->id = 0;
-            $this->id_mp_stock = 0;
-            $id =0;
-        }
         parent::__construct($id, $this->id_lang, $this->id_shop);
     }
     
-    public function save($null_values = false, $auto_date = true)
-    {
-        $this->id_mp_stock = $this->id;
-        return parent::save($null_values, $auto_date);
-    }
-    
+    /**
+     * Non-static method which uses AdminController::translate()
+     *
+     * @param string  $string Term or expression in english
+     * @param string|null $class Name of the class
+     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
+     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
+     * @return string The translation if available, or the english default text.
+     */
     protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
     {
         if ($class === null || $class == 'AdminTab') {
-            $class = Tools::substr(get_class($this), 0, -10);
-        } elseif (Tools::strtolower(Tools::substr($class, -10)) == 'controller') {
+            $class = substr(get_class($this), 0, -10);
+        } elseif (strtolower(substr($class, -10)) == 'controller') {
             /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = Tools::substr($class, 0, -10);
+            $class = substr($class, 0, -10);
         }
         return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
@@ -251,46 +267,13 @@ class MpStockClassObject extends ObjectModelCore
         return $row;
     }
     
-    public static function deleteMovement($id_movements)
+    public static function getReference($id_product)
     {
-        if (!is_array($id_movements)) {
-            $id_movements = array($id_movements);
-        }
-        
-        foreach($id_movements as $id_movement) {
-            $row = self::getMovement($id_movement);
-            $qty = (int)$row['qty'];
-            $id_product_attribute = (int)$row['id_product_attribute'];
-            $id_stock_available = (int)self::getIdStockAvailable($id_product_attribute);
-            
-            if ($row && (int)$row['exchange']>0 && (int)$row['id_mp_stock_exchange'] == 0) {
-                //DELETE EXCHANGE MOVEMENT
-                self::deleteMovement(self::getExchangeId((int)$row['id_mp_stock']));
-            }
-            //DELETE MOVEMENT
-            $db = Db::getInstance();
-            $db->delete(
-                'mp_stock',
-                'id_mp_stock='.(int)$id_movement
-            );
-            //UPDATE STOCK AVAILABLE
-            self::updateStock($id_stock_available, $qty * -1);
-        }  
-    }
-    
-    public static function getIdStockAvailable($id_product_attribute)
-    {
-        if ((int)$id_product_attribute == 0) {
-            return 0;
-        }
-        
         $db = Db::getInstance();
         $sql = new DbQueryCore();
-        
-        $sql->select('id_stock_available')
-            ->from('stock_available')
-            ->where('id_product_attribute='.(int)$id_product_attribute);
-        
+        $sql->select('reference')
+            ->from('product')
+            ->where('id_product='.(int)$id_product);
         return (int)$db->getValue($sql);
     }
     
@@ -303,7 +286,6 @@ class MpStockClassObject extends ObjectModelCore
             ->where('id_mp_stock_exchange='.(int)$id_movement);
         return (int)$db->getValue($sql);
     }
-
 
     public static function getTplVars($id_movement)
     {
@@ -354,10 +336,82 @@ class MpStockClassObject extends ObjectModelCore
         }
     }
     
-    public static function updateStock($id_stock_available, $qty)
-    {
+    public static function updateStock($id_stock_available, $qty) {
         $stock = new StockAvailableCore($id_stock_available);
         $stock->quantity = $stock->quantity + $qty;
         return $stock->update();
+    }
+    
+    public function getIdStockAvailable()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('id_stock_available')
+            ->from('stock_available')
+            ->where('id_shop='.(int)$this->id_shop)
+            ->where('id_product='.(int)$this->id_product)
+            ->where('id_product_attribute='.(int)$this->id_product_attribute);
+        $id_stock_available = (int)$db->getValue($sql);
+        return $id_stock_available;
+    }
+    
+    public function getQuantity($id_movement)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('qty')
+            ->from('mp_stock')
+            ->where('id_mp_stock='.(int)$id_movement);
+        $id_mp_stock = (int)$db->getValue($sql);
+        return $id_mp_stock;
+    }
+    
+    public function add($auto_date = true, $null_values = false) {
+        $result= parent::add($auto_date, $null_values);
+        if ($result) {
+            $id_stock_available = $this->getIdStockAvailable();
+            self::updateStock($id_stock_available, $this->qty);
+        }
+    }
+    
+    public function update($null_values = false) {
+        $qty = $this->getQuantity($this->id);
+        $result = parent::update($null_values);
+        if ($result) {
+            $id_stock_available = $this->getIdStockvailable();
+            self::updateStock($id_stock_available, $this->qty - $qty);
+        }
+    }
+    
+    public function delete() {
+        $result = parent::delete();
+        if ($result) {
+            $id_stock_available = $this->getIdStockAvailable();
+            self::updateStock($id_stock_available, -$this->qty);
+        }
+    }
+    
+    public function deleteBulk($id_movements)
+    {
+        if (!is_array($id_movements)) {
+            $id_movements = array($id_movements);
+        }
+        
+        foreach($id_movements as $id_movement) {
+            $movement = new MpStockClassObject($id_movement);
+            if ($movement) {
+                $this->id = $movement->id;
+                $this->id_product = $movement->id_product;
+                $this->id_product_attribute = $movement->id_product_attribute;
+                $result = $this->delete();
+                if (!$result) {
+                    Context::getContext()->controller->errors[] = sprintf(
+                        $this->l('Error deleting %s: %s'),
+                        self::getReference($this->id_product),
+                        Db::getInstance()->getMsgError()
+                    );
+                }
+            }
+        }  
     }
 }
