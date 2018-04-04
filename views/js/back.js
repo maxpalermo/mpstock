@@ -61,11 +61,35 @@ function ajaxImportXML(data)
         result.forEach(function(item, index){
             if(item.error !== 0) {
                 $('#form-mp_stock').prepend(item.error);
+                ajaxRefreshTable();
             } else {
                 $('#form-mp_stock').prepend(item.confirmation);
             }   
         });
         $('input[name="inputFileXML"]').remove();
+    })
+    .fail(function(){
+        jAlert("AJAX ERROR");
+    });
+}
+
+function ajaxRefreshTable()
+{
+    $.ajax({
+        type: 'POST',
+        dataType: 'json',
+        useDefaultXhrHeader: false,
+        processData: true,
+        contentType: true,
+        data: {
+            ajax: true,
+            action: 'refreshTable'
+        }
+    })
+    .done(function(result){
+        if (result.error === false) {
+            $('#form-mp_stock').html(result.content);
+        }
     })
     .fail(function(){
         jAlert("AJAX ERROR");

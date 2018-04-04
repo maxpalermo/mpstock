@@ -372,6 +372,7 @@ Class MpStockClassObject extends ObjectModelCore
             $id_stock_available = $this->getIdStockAvailable();
             self::updateStock($id_stock_available, $this->qty);
         }
+        return $result;
     }
     
     public function update($null_values = false) {
@@ -381,6 +382,7 @@ Class MpStockClassObject extends ObjectModelCore
             $id_stock_available = $this->getIdStockvailable();
             self::updateStock($id_stock_available, $this->qty - $qty);
         }
+        return $result;
     }
     
     public function delete() {
@@ -389,6 +391,7 @@ Class MpStockClassObject extends ObjectModelCore
             $id_stock_available = $this->getIdStockAvailable();
             self::updateStock($id_stock_available, -$this->qty);
         }
+        return $result;
     }
     
     public function deleteBulk($id_movements)

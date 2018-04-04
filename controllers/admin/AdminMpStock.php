@@ -586,8 +586,8 @@ class AdminMpStockController extends ModuleAdminController
         $json = array();
         if ($file['content']) {
             $xml = simplexml_load_string($file['content']);
-            $sign = (string)$xml->movement_Type=='load'?1:-1;
-            $date = (string)$xml->movement_Date;
+            $sign = (string)$xml->movement_type=='load'?1:-1;
+            $date = (string)$xml->movement_date;
             $rows = $xml->rows;
             //$output['xml'] = $rows;
             foreach ($rows->children() as $row) {
@@ -604,6 +604,8 @@ class AdminMpStockController extends ModuleAdminController
             }
             
             foreach ($output as $row) {
+                $error_message = '';
+                $error_db = '';
                 $ean13 = trim($row['ean13']);
                 $reference = trim($row['reference']);
                 if (empty($ean13)) {
@@ -648,18 +650,22 @@ class AdminMpStockController extends ModuleAdminController
                 $stock->date_add = date('Y-m-d H:i:s');
                 try {
                     $add = $stock->add();
+                    PrestaShopLoggerCore::addLog('Adding new stock:'.(int)$add);
                 } catch (Exception $ex) {
                     $add = false;
+                    $error_message = "Exception: " . $ex->getMessage();
+                    $error_db = "Database: " . Db::getInstance()->getMsgError();
                 }
-                if (!$add) {
+                if ((int)$add == 0) {
                     array_push(
                         $json,
                         array(
                             'reference' => $product['reference'],
                             'error' => $this->module->displayError(
                                 sprintf(
-                                    $this->l('Unable to add product. %s'),
-                                    Db::getInstance()->getMsgError()
+                                    $this->l('Unable to add product. Error: %s, %s'),
+                                    $error_message,
+                                    $error_db
                                 )
                             ),
                         )
@@ -817,6 +823,18 @@ class AdminMpStockController extends ModuleAdminController
             );
             exit();
         }
+    }
+    
+    public function ajaxProcessRefreshTable()
+    {
+        $content = $this->initList() . $this->initScript();
+        print Tools::jsonEncode(
+            array(
+                'result' => true,
+                'content' => $content,
+            )
+        );
+        exit();
     }
     
     public function ajaxProcessDeleteMovement()

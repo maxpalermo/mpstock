@@ -216,7 +216,7 @@ Class MpStockStockMovements
     {
         $sql = new DbQueryCore();
         $sql->select('od.product_attribute_id')
-            ->select('od.product_quantity as product_qty')
+            ->select('-od.product_quantity as product_qty')
             ->select('od.unit_price_tax_excl as product_price')
             ->select('od.id_tax_rules_group')
             ->select('\'0\' as product_tax_rate')
@@ -243,7 +243,7 @@ Class MpStockStockMovements
     {
         $sql = new DbQueryCore();
         $sql->select('od.product_attribute_id')
-            ->select('osd.product_quantity as product_qty')
+            ->select('-osd.product_quantity as product_qty')
             ->select('osd.unit_price_tax_excl as product_price')
             ->select('od.id_tax_rules_group')
             ->select('\'0\' as product_tax_rate')
