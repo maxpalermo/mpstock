@@ -25,8 +25,8 @@
  */
 
 ini_set('max_execution_time', 300); //300 seconds = 5 minutes
-ini_set('post_max_size', '64M');
-ini_set('upload_max_filesize', '64M');
+ini_set('post_max_size', '128M');
+ini_set('upload_max_filesize', '128M');
 
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockClassObject.php';
 

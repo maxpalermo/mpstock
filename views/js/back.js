@@ -61,11 +61,11 @@ function ajaxImportXML(data)
         result.forEach(function(item, index){
             if(item.error !== 0) {
                 $('#form-mp_stock').prepend(item.error);
-                ajaxRefreshTable();
             } else {
                 $('#form-mp_stock').prepend(item.confirmation);
             }   
         });
+        ajaxRefreshTable();
         $('input[name="inputFileXML"]').remove();
     })
     .fail(function(){
@@ -79,8 +79,6 @@ function ajaxRefreshTable()
         type: 'POST',
         dataType: 'json',
         useDefaultXhrHeader: false,
-        processData: true,
-        contentType: true,
         data: {
             ajax: true,
             action: 'refreshTable'
