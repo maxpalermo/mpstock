@@ -48,9 +48,9 @@
 					<i class="icon-download-alt" style="color: #cdcdcd;"></i>
 			</span>
 		</a>
-		<a id="btn-refresh" class="list-toolbar-btn" href="javascript:void(0);" onclick="resetTable();">
-			<span title="" data-toggle="tooltip" class="label-tooltip" data-original-title="Reset table" data-html="true" data-placement="top">
-					<i class="icon-refresh" style="color: #090;"></i>
+		<a id="btn-back" class="list-toolbar-btn" href="{$back_url}">
+			<span title="" data-toggle="tooltip" class="label-tooltip" data-original-title="Back" data-html="true" data-placement="top">
+					<i class="icon-backward" style="color: #090;"></i>
 			</span>
 		</a>
 	</span>

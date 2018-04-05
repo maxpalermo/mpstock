@@ -41,6 +41,11 @@ class AdminMpStockController extends ModuleAdminController
     protected $parameters = array();
     protected $smarty;
     
+    /** PAGINATION **/
+    protected $current_page = 1;
+    protected $page = 1;
+    protected $selected_pagination = 10;
+    
     public function __construct()
     {   
         $this->bootstrap = true;
@@ -62,11 +67,38 @@ class AdminMpStockController extends ModuleAdminController
         $this->smarty = Context::getContext()->smarty;
         $this->link = new LinkCore();
         
+        /**
+         * AJAX CALL
+         */
         if (Tools::isSubmit('ajax')) {
             $action = 'ajaxProcess' . Tools::getValue('action');
             print $this->$action();
             exit();
         }
+        
+        /**
+         * PAGINATION CALL
+         */
+        if (Tools::isSubmit('submitFiltermp_stock')) {
+            $this->initPagination();
+        }
+        
+        /**
+         * DISPLAY ADD MOVEMENT
+         */
+        if (Tools::isSubmit('addMovement')) {
+            $this->content = $this->initForm() . $this->initScript();
+            parent::initContent();
+            return;
+        }
+        
+        /**
+         * DISPLAY DEFAULT PAGE
+         */
+        $this->content = implode('<br>', $this->messages) . $this->initList() . $this->initScript() . $this->createTable();
+        parent::initContent();
+        return;
+        
         
         if (Tools::isSubmit('mp_stockBox') || Tools::isSubmit('deletemp_stock')) {
             if (Tools::isSubmit('mp_stockBox')) {
@@ -93,6 +125,13 @@ class AdminMpStockController extends ModuleAdminController
         parent::initContent();
     }
     
+    private function initPagination()
+    {
+        $this->current_page = (int)Tools::getValue('submitFiltermp_stock', 1);
+        $this->page = (int)Tools::getValue('page');
+        $this->selected_pagination = (int)Tools::getvalue('selected_pagination', 50);
+    }
+    
     private function initForm()
     {
         $this->smarty->assign(
@@ -101,11 +140,12 @@ class AdminMpStockController extends ModuleAdminController
                 'content_form' => $this->module->getPath().'views/templates/admin/AdminMpStockContent.tpl',
                 'footer_form' => $this->module->getPath().'views/templates/admin/AdminMpStockFooter.tpl',
                 'transform_form' => $this->module->getPath().'views/templates/admin/AdminMpStockTransform.tpl',
+                'back_url' => $this->link->getAdminLink($this->className),
                 'tot_badge' => 0,
                 'page' => 0,
                 'pagination' => 0,
                 'img_folder' => $this->module->getUrl().'views/img/',
-                'select_stock_movements' => $this->getmovements(),
+                'select_stock_movements' => $this->getMovements(),
             )
         );
         
@@ -184,7 +224,7 @@ class AdminMpStockController extends ModuleAdminController
                 'confirm' => $this->l('Are you sure you want to delete selected movements?'),
             ),
         );
-        $helper->_default_pagination = Tools::getValue('selected_pagination', 20);
+        $helper->_default_pagination = $this->selected_pagination;
         $helper->_pagination = array(
             5,
             10,
@@ -194,7 +234,7 @@ class AdminMpStockController extends ModuleAdminController
             500,
             1000,
         );
-        $helper->page = Tools::getValue('page', 1);
+        $helper->page = $this->current_page;
         $helper->shopLinkType = '';
         $helper->simple_header = false;
         $helper->identifier = 'id_mp_stock';
@@ -207,7 +247,7 @@ class AdminMpStockController extends ModuleAdminController
         $helper->actions = array('delete');
         $helper->toolbar_btn = array(
             'new' => array(
-                'href' => '',
+                'href' => $helper->currentIndex.'&token='.$helper->token.'&addMovement',
                 'desc' => $this->l('New movement'),
             ),
             'upload' => array(
@@ -235,7 +275,7 @@ class AdminMpStockController extends ModuleAdminController
     
     private function initScript()
     {
-        Context::getContext()->controller->addJqueryPlugin('growl');
+        return;
         $this->smarty->assign(
             array(
                 'token' => Tools::getAdminTokenLite($this->className),
@@ -263,12 +303,14 @@ class AdminMpStockController extends ModuleAdminController
         }
     }
     
-    public function getmovements()
+    public function getMovements()
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();
         
-        $sql->select('CONCAT(id_mp_stock_type_movement,\'-\',exchange, \'-\', sign) as id')
+        $sql->select('id_mp_stock_type_movement')
+            ->select('exchange')
+            ->select('sign')
             ->select('name as value')
             ->from('mp_stock_type_movement')
             ->where('id_lang='.(int)$this->id_lang)
@@ -277,6 +319,10 @@ class AdminMpStockController extends ModuleAdminController
         $result = $db->executeS($sql);
         if (!$result) {
             return array();
+        }
+        foreach ($result as &$row)
+        {
+            $row['id'] = $row['id_mp_stock_type_movement'].'_'.$row['exchange'].'_'.$row['sign'];
         }
         return $result;
     }
@@ -730,7 +776,7 @@ class AdminMpStockController extends ModuleAdminController
             );
         } else {
             require_once $this->module->getPath().'classes/ProductCombinations.php';
-            $combinations = new MpStockProductCombinations($this->module, $id_product, $this->getmovements());
+            $combinations = new MpStockProductCombinations($this->module, $id_product, $this->getMovements());
             $table = $combinations->display($output_mode);
             print Tools::jsonEncode(
                 array(
@@ -869,7 +915,7 @@ class AdminMpStockController extends ModuleAdminController
     {
         $this->errors = array();
         $row = Tools::getValue('row', null);
-        if (empty(row)) {
+        if (empty($row)) {
             print Tools::jsonEncode(
                 array(
                     'result' => false,
@@ -885,12 +931,14 @@ class AdminMpStockController extends ModuleAdminController
         $stock->id_product_attribute = $row['id_product_attribute'];
         $stock->id_mp_stock_type_movement = $row['type_movement'];
         $stock->qty = $row['qty'];
-        $stock->price = $row['price'];
-        $stock->tax_rate = $row['tax_rate'];
+        $stock->price = $stock->toFloat($row['price']);
+        $stock->tax_rate = $stock->toFloat($row['tax_rate']);
         $stock->date_add = date('Ymdhis');
+        $stock->date_movement = $row['date_movement']==0?date('Y-m-d'):$row['date_movement'];
+        $stock->sign = $row['sign'];
         $stock->id_employee = $this->id_employee;
         
-        if ($stock->save()) {
+        if ($stock->add()) {
             print Tools::jsonEncode(
                 array(
                     'result' => true,
@@ -901,7 +949,7 @@ class AdminMpStockController extends ModuleAdminController
             print Tools::jsonEncode(
                 array(
                     'result' => false,
-                    'msg_error' => Db::getInstance()->getMsgError(),
+                    'msg_error' => $stock->errorMessage,
                 )
             );
         }
@@ -1038,5 +1086,12 @@ class AdminMpStockController extends ModuleAdminController
             $this->parameters[$parameter['name']] = $parameter['value'];
         }
         return $this->parameters;
+    }
+    
+    public function createTable()
+    {
+        include $this->module->getPath().'classes/MpHelperTable.php';
+        $helper = new MpHelperTable($this->module);
+        return $helper->generateTable(array());
     }
 }

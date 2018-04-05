@@ -52,6 +52,8 @@ Class MpStockClassObject extends ObjectModelCore
     public $id_shop;
     /** @var int reference to language */
     public $id_lang;
+    /** @var string errorMessage last error message */
+    public $errorMessage;
     
     public static $definition = array(
         'table' => 'mp_stock',
@@ -339,7 +341,14 @@ Class MpStockClassObject extends ObjectModelCore
     public static function updateStock($id_stock_available, $qty) {
         $stock = new StockAvailableCore($id_stock_available);
         $stock->quantity = $stock->quantity + $qty;
-        return $stock->update();
+        try {
+            $result =  $stock->update();
+        } catch (Exception $ex) {
+            $result = false;
+            PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
+            $this->errorMessage = "Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage();
+        }
+        return $result;
     }
     
     public function getIdStockAvailable()
@@ -367,7 +376,14 @@ Class MpStockClassObject extends ObjectModelCore
     }
     
     public function add($auto_date = true, $null_values = false) {
-        $result= parent::add($auto_date, $null_values);
+        try {
+            $result = parent::add($auto_date, $null_values);
+        } catch (Exception $ex) {
+            $result = false;
+            PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
+            $this->errorMessage = "Exception on add(): " . $ex->getCode() . '-' . $ex->getMessage();
+        }
+        
         if ($result) {
             $id_stock_available = $this->getIdStockAvailable();
             self::updateStock($id_stock_available, $this->qty);
@@ -416,5 +432,23 @@ Class MpStockClassObject extends ObjectModelCore
                 }
             }
         }  
+    }
+    
+    public function toFLoat($value)
+    {
+        //$iso = Context::getContext()->language->language_code;
+        //$curr = Context::getContext()->currency->iso_code;
+        $sign = Context::getContext()->currency->sign;
+        $num = str_replace(' %', '', $value);
+        $num2 = str_replace(' '.$sign, '', $num);
+        if ($sign == '€') {
+            $num3 = str_replace(".", "", $num2);
+            $num4 = str_replace(",", ".", $num3);
+            $float = $num4;
+        } else {
+            $num3 = str_replace(",", "", $num2);
+            $float = $num3;
+        }
+        return $float;
     }
 }

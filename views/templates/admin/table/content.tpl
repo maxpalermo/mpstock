@@ -22,3 +22,14 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
+
+<div id='section-messages'>
+    
+</div>
+<div class="panel" id='section-table'>
+    {include file=$template_header}
+    <div class="panel-body" id='section-table-content'>
+        {include file=$template_content}
+    </div>
+    {include file=$template_footer}
+</div>

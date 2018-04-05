@@ -22,3 +22,19 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
+
+<div class="panel-heading" id='section-table-header'>
+    <i class='icon {$header_icon}' style='color: {$header_color}'></i>
+    {$header_title|upper}
+    <span class="badge">{$tot_rows}</span>
+    <span class="panel-heading-action">
+    {foreach $header_action_buttons as $btn}
+        <a id='{$btn.id}' class='list-toolbar-btn' href='{$btn.href}'>
+            <span title="" data-toggle="tooltip" class="label-tooltip" data-original-title="{$btn.hint}" data-html="true" data-placement="top">
+                <i class="{$btn.icon}" style="color: {$btn.color}"></i>
+            </span>
+        </a>
+    {/foreach}
+    </span>    
+</div>
+        
