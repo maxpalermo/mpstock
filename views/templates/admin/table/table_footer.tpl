@@ -49,7 +49,7 @@
                     </td>
                     <td>{$footer_title_page}</td>
                     <td>
-                        <select class='fixed-width-sm' onchange="javascript:table_pagination(this.value, {$footer_current_pagination})">
+                        <select id="table_footer_page" class='fixed-width-sm' onchange="javascript:table_pagination(this.value, {$footer_current_pagination})">
                         {for $page=1 to $footer_tot_pages}
                             <option value="{$page}" {if $page==$footer_current_page}selected="selected"{/if}>{$page}</option>
                         {/for}
@@ -63,7 +63,7 @@
                         {$footer_visualization_title} 
                     </td>    
                     <td style='padding-left: 0;'>
-                        <select onchange="table_pagination(1,this.value);">
+                        <select id="table_footer_pagination" onchange="table_pagination(1,this.value);">
                         {foreach $footer_paginations as $page}
                             <option value="{$page}" {if $page==$footer_current_pagination}selected="selected"{/if}>{$page}</option>
                         {/foreach}   

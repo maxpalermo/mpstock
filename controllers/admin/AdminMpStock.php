@@ -75,7 +75,7 @@ class AdminMpStockController extends ModuleAdminController
          * AJAX CALL
          */
         if (Tools::isSubmit('ajax')) {
-            $action = 'ajaxProcess' . Tools::getValue('action');
+            $action = 'ajaxProcess' . ucfirst(Tools::getValue('action'));
             print $this->$action();
             exit();
         }
@@ -302,6 +302,7 @@ class AdminMpStockController extends ModuleAdminController
             $this->addJqueryUI('ui.effect-slide');
             $this->addJqueryUI('ui.effect-fold');
             $this->addJqueryUI('ui.autocomplete');
+            $this->addJqueryUI('ui.datepicker');
             $this->addJqueryPlugin('growl');
             $this->addJS($this->module->getPath().'views/js/back.js');
         }
@@ -921,6 +922,17 @@ class AdminMpStockController extends ModuleAdminController
                 'content' => $content,
             )
         );
+        exit();
+    }
+    
+    public function ajaxProcessFilterTable()
+    {
+        $filters = tools::getValue('filters');
+        $output = array();
+        foreach($filters as $filter) {
+            $output[] = array('field_name' => $filter['field'], 'field_value' => $filter['value']);
+        }
+        print Tools::jsonEncode($output);
         exit();
     }
     

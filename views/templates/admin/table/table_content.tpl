@@ -28,7 +28,13 @@
         <thead>
             <tr class="nodrag nodrop">
                 {if $table.checkbox}
-                    <th class="center fixed-width-xs"><input type="checkbox" id='table-checkbox-toggle'></th>
+                    <th class="center fixed-width-xs">
+                        <input 
+                            type="checkbox" 
+                            id='table-checkbox-toggle'
+                            onclick='$(this).closest("table").find("tbody").find("tr input[type=checkbox]").attr("checked", this.checked);'
+                        >
+                    </th>
                 {/if}
                 {foreach $table.header_columns as $col}
                     <th class='{$col.classname}' {if $col.width}style='width: {$col.width}'{/if}>
@@ -52,13 +58,13 @@
                             {elseif $col.type=='date'}
                                 <div class="date_range row">
                                     <div class="input-group fixed-width-md center">
-                                        <input type="text" class="filter datepicker date-input form-control hasDatepicker" name="table_filter[]" placeholder="{$table.table_content_filter_from}" input_type="date_from">
+                                        <input control-type="datepicker" type="text" class="filter form-control" name="table_filter[]" placeholder="{$table.table_content_filter_from}" input_type="date_from" field="{$col.fieldname}">
                                         <span class="input-group-addon">
                                             <i class="icon-calendar"></i>
 					</span>
                                     </div>
                                     <div class="input-group fixed-width-md center">
-                                        <input type="text" class="filter datepicker date-input form-control hasDatepicker" name="table_filter[]" placeholder="{$table.table_content_filter_to}" input_type="date_to">
+                                        <input control-type="datepicker" type="text" class="filter form-control" name="table_filter[]" placeholder="{$table.table_content_filter_to}" input_type="date_to" field="{$col.fieldname}">
                                         <span class="input-group-addon">
                                             <i class="icon-calendar"></i>
 					</span>
@@ -141,4 +147,51 @@
         {/foreach}
     </table>
 </div>
-        
+<script type='text/javascript'>
+    $(document).ready(function(){
+        $('input[control-type="datepicker"]').datepicker().datepicker("option", "dateFormat", 'yy-mm-dd');
+    });
+    function table_button_find_click()
+    {
+        var filters = $('input[name="table_filter[]"]');
+        var data = [];
+        $(filters).each(function(){
+            var field = $(this).attr('field');
+            var value = this.value;
+            var object = {
+                field: field,
+                value: value
+            };
+            data.push(object);
+        });
+        if (data.length) {
+            data.push({
+                field: "pagination",
+                value: $('#table_footer_pagination').val()
+            });
+            data.push({
+                field: "page",
+                value: $('#table_footer_page').val()
+            });
+            $.ajax({
+                type: 'POST',
+                dataType: 'json',
+                useDefaultXhrHeader: false,
+                data: {
+                    ajax: true,
+                    action: 'filterTable',
+                    filters: data
+                }
+            })
+            .done(function(result){
+                console.log (result);
+                if (result.error === false) {
+                    $('#form-mp_stock').html(result.content);
+                }
+            })
+            .fail(function(){
+                jAlert("AJAX ERROR");
+            });
+        }
+    }
+</script>
