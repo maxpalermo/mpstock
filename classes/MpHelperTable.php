@@ -24,11 +24,17 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
+/**
+ * TODO CLICK ON ROW
+ * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
+ */
+
 Class MpHelperTable
 {
     const TYPE_BUTTON = 'button';
     const TYPE_TEXT = 'text';
     const TYPE_PRICE = 'price';
+    const TYPE_INT = 'int';
     const TYPE_DATE = 'date';
     const TYPE_PERCENTAGE = 'percentage';
     const TYPE_IMAGE = 'image';
@@ -97,6 +103,8 @@ Class MpHelperTable
     public $table;
     /** @var string $footer_title Title of footer panel **/
     public $footer_title;
+    /** @var string $footer_icon Icon of footer panel **/
+    public $footer_icon;
     /** @var array $footer_paginations Array of pagination values **/
     public $footer_paginations;
     /** @var int $footer_current_pagination currentpagination **/
@@ -105,6 +113,10 @@ Class MpHelperTable
     public $footer_current_page;
     /** @var string $footer_tot_pages total pages to show **/
     public $footer_tot_pages;
+    /** @var string $footer_title_page translation of word Page **/
+    public $footer_title_page;
+    /** @var string $footer_visualization_title translation of word Display **/
+    public $footer_visualization_title;
     /** @var array $table_list Array of content values of table **/
     public $table_list;
     /** @var array $table_row_actions Array of button shown in each row **/
@@ -130,17 +142,19 @@ Class MpHelperTable
         $this->table['table_content_filter_find'] = $this->l('Find');
         $this->table['header_columns'] = array();
         $this->table['rows']= array();
+        $this->footer_icon = 'icon-list';
         $this->footer_title = $this->l('MP Helper List');
+        $this->footer_title_page = $this->l('Page');
+        $this->footer_visualization_title = $this->l('Display');
         $this->footer_paginations = array(5, 10, 20, 50, 100, 200, 500, 1000);
         $this->footer_current_pagination = 50;
         $this->footer_current_page = 1;
         $this->footer_tot_pages = 1;
         $this->table_list = array();
         $this->table_row_actions = array();
-        
     }
     
-    public function addImageDefinition($src, $width = 64, $height = 64, $fit = self::OBJECT_FIT_CONTAIN)
+    public function addImageDefinition($src, $width = '48px', $height = '48px', $fit = self::OBJECT_FIT_CONTAIN)
     {
         $image = array(
             'src' => $src,
@@ -152,7 +166,16 @@ Class MpHelperTable
         return $image;
     }
     
-    public function addHeaderButton($id, $href, $hint, $icon, $color = "#555")
+    /**
+     * Add a button in toolbar
+     * @param string $id id of the button
+     * @param string $href action when clicked
+     * @param string $hint display suggestion on mouseover
+     * @param string $icon icon to display
+     * @param string $color Optional color in HTML format
+     * @return array an Array of values definition for the button
+     */
+    public function addToolbarButton($id, $href, $hint, $icon, $color = "#555")
     {
         $button = array(
             'id' => $id,
@@ -178,17 +201,20 @@ Class MpHelperTable
         return $button;
     }
     
-    public function addTableHeader($key, $classname, $title, $type, $fieldname, $search = 0, $width='auto')
+    public function addTableHeader($key, $classname, $title, $type, $fieldname, $search = 0, $width='auto', $text_align = 'left', $negative = true)
     {
         $header = array(
+            'key' => $key,
             'classname' => $classname,
             'title' => $title,
             'type' => $type,
             'fieldname' => $fieldname,
             'search' => $search,
             'width'=> $width,
+            'text_align' => $text_align,
+            'negative' => $negative,
         );
-        $this->table['header_columns'][$key] = $header;
+        $this->table['header_columns'][$fieldname] = $header;
         return $header;
     }
     
@@ -210,6 +236,7 @@ Class MpHelperTable
     public function generateTable($rows)
     {
         $this->table['rows'] = $rows;
+        $this->tot_rows = count($rows);
         $template = $this->module->getPath().'views/templates/admin/table/';
         $smarty = Context::getContext()->smarty;
         $smarty->assign(
@@ -222,12 +249,16 @@ Class MpHelperTable
                 'header_title' => $this->header_title,
                 'tot_rows' => $this->tot_rows,
                 'header_action_buttons' => $this->header_action_buttons,
+                'table_row_image' => $this->table_row_image,
                 'table' => $this->table,
                 'footer_title' => $this->footer_title,
+                'footer_icon' => $this->footer_icon,
+                'footer_title_page' => $this->footer_title_page,
                 'footer_paginations' => $this->footer_paginations,
                 'footer_current_pagination' => $this->footer_current_pagination,
                 'footer_current_page' => $this->footer_current_page,
                 'footer_tot_pages' => $this->footer_tot_pages,
+                'footer_visualization_title' => $this->footer_visualization_title,
             )
         );
         $html = $smarty->fetch($this->module->getPath().'views/templates/admin/table/content.tpl');

@@ -32,6 +32,10 @@ require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockClassObject.php';
 
 class AdminMpStockController extends ModuleAdminController
 {
+    const TYPE_MESSAGE_ERROR = 'error';
+    const TYPE_MESSAGE_CONFIRMATION = 'confirmation';
+    const TYPE_MESSAGE_WARNING = 'warning';
+    
     public $link;
     protected $id_lang;
     protected $id_shop;
@@ -95,7 +99,7 @@ class AdminMpStockController extends ModuleAdminController
         /**
          * DISPLAY DEFAULT PAGE
          */
-        $this->content = implode('<br>', $this->messages) . $this->initList() . $this->initScript() . $this->createTable();
+        $this->content = implode('<br>', $this->messages) . $this->createTable() . $this->initScript();
         parent::initContent();
         return;
         
@@ -242,7 +246,7 @@ class AdminMpStockController extends ModuleAdminController
         $helper->title = $this->l('Stock movements');
         $helper->table = 'mp_stock';
         $helper->token = Tools::getAdminTokenLite($this->className);
-        $helper->currentIndex = $this->link->getAdminLink($this->className, false);
+        $helper->currentIndex = $this->link->getAdminLink($this->className).'&token='.$helper->token.'&addMovement';
         $helper->no_link = true;
         $helper->actions = array('delete');
         $helper->toolbar_btn = array(
@@ -471,6 +475,13 @@ class AdminMpStockController extends ModuleAdminController
         return $result;
     }
     
+    public function getRows($pagination = 50, $page = 1)
+    {
+        $stock = new MpStockClassObject();
+        $rows =  $stock->getRows($pagination, $page);
+        return $rows;
+    }
+    
     public function getListProducts(HelperListCore &$helper, $order = 'DESC')
     {
         PrestaShopLoggerCore::addLog('Init getLIstProduct');
@@ -612,6 +623,24 @@ class AdminMpStockController extends ModuleAdminController
         return $product;
     }
     
+    public function displayMessage($params) {
+        if ($params['type'] == self::TYPE_MESSAGE_ERROR) {
+            $content = $this->module->displayError($params['message']);
+            $error = true;
+        } elseif ($params['type'] == self::TYPE_MESSAGE_WARNING) {
+            $content = $this->module->displayWarning($params['message']);
+            $error = true;
+        } elseif ($params['type'] == self::TYPE_MESSAGE_CONFIRMATION) {
+            $content = $this->module->displayConfirmation($params['message']);
+            $error = false;
+        } else {
+            $content = $this->module->displayError($params['message']);
+        }
+        $params['message'] = $content;
+        $params['error'] = $error;
+        $params;
+    }
+    
     public function ajaxProcessImportXML()
     {
         /** Check if user is logged **/
@@ -662,20 +691,24 @@ class AdminMpStockController extends ModuleAdminController
                     ));
                     continue;
                 } elseif (empty($reference)) {
-                    array_push($json, array(
-                        'reference' => $this->l('Invalid reference'),
-                        'error' => $this->module->displayError(
-                            $this->l('Unable to find product.')),
+                    array_push($json, $this->displayMessage(
+                        array(
+                            'type' => self::TYPE_MESSAGE_ERROR,
+                            'reference' => $this->l('Invalid reference'),
+                            'message' => $this->l('Unable to find product.'),
+                        )
                     ));
                     continue;
                 }
                 $product = $this->getProductByEan13($ean13, $reference);
                 PrestaShopLoggerCore::addLog('PRODUCT:\n'.print_r($product,1));
                 if (!$product) {
-                    array_push($json, array(
-                        'reference' => $row['reference'],
-                        'error' => $this->module->displayError(
-                            sprintf($this->l('Combination with ean13 %s not found.'), $ean13)),
+                    array_push($json, $json, $this->displayMessage(
+                        array(
+                            'type' => self::TYPE_MESSAGE_ERROR,
+                            'reference' => $this->l('Invalid reference'),
+                            'message' => sprintf($this->l('Combination with ean13 %s not found.'), $ean13),
+                        )
                     ));
                     continue;
                 }
@@ -722,6 +755,14 @@ class AdminMpStockController extends ModuleAdminController
             }
             PrestaShopLoggerCore::addLog(print_r($json,1));
             print Tools::jsonEncode($json);
+        } else {
+            $this->displayMessage(
+                array(
+                    'type' => self::TYPE_MESSAGE_ERROR,
+                    'title' => $this->l('Import XML'),
+                    'message' => $this->l('File empty')
+                )
+            );
         }
         exit();
     }
@@ -1092,6 +1133,127 @@ class AdminMpStockController extends ModuleAdminController
     {
         include $this->module->getPath().'classes/MpHelperTable.php';
         $helper = new MpHelperTable($this->module);
-        return $helper->generateTable(array());
+        $helper->header_title = $this->l('List Movements');
+        $helper->header_icon = 'icon-list';
+        $helper->header_color = '#5577BB';
+        $helper->footer_title = $this->l('Total movements');
+        $helper->footer_icon = 'icon-list';
+        $helper->addImageDefinition($this->module->getUrl().'views/img/404.jpg');
+        $helper->addToolbarButton(
+            'addMovement',
+            $this->link->getAdminLink($this->className).'&addMovement',
+            $this->l('Add new movement'),
+            'process-icon-plus',
+            '#3355BB'
+        );
+        $helper->addToolbarButton(
+            'importMovement',
+            'javascript:importXML();',
+            $this->l('Import movements in XML format'),
+            'process-icon-upload',
+            '#55BB55'
+        );
+        $helper->addToolbarButton(
+            'exportMovements',
+            'javascript:'
+            . 'exportMovements();',
+            $this->l('Export movements'),
+            'process-icon-download',
+            '#88AABB'
+        );
+        $helper->addToolbarButton(
+            'refreshMovements',
+            'javascript:refreshMovements();',
+            $this->l('Refresh table'),
+            'process-icon-refresh'
+        );
+        $helper->addTableHeader(
+            'col_image',
+            'text-center',
+            $this->l('Image'),
+            MpHelperTable::TYPE_IMAGE,
+            'image',
+            false,
+            '32px',
+            'center'
+        );
+        $helper->addTableHeader(
+            'col_reference',
+            'text-center',
+            $this->l('Reference'),
+            MpHelperTable::TYPE_TEXT,
+            'reference',
+            true,
+            'auto'
+        );
+        $helper->addTableHeader(
+            'col_name',
+            'text-center',
+            $this->l('Name'),
+            MpHelperTable::TYPE_TEXT,
+            'name',
+            true,
+            'auto'
+        );
+        $helper->addTableHeader(
+            'col_price',
+            'text-center',
+            $this->l('Price'),
+            MpHelperTable::TYPE_PRICE,
+            'price',
+            false,
+            'auto',
+            'right'
+        );
+        $helper->addTableHeader(
+            'col_tax_rate',
+            'text-center',
+            $this->l('Tax rate'),
+            MpHelperTable::TYPE_PERCENTAGE,
+            'tax_rate',
+            false,
+            'auto',
+            'right'
+        );
+        $helper->addTableHeader(
+            'col_qty',
+            'text-center',
+            $this->l('Qty'),
+            MpHelperTable::TYPE_INT,
+            'qty',
+            false,
+            'auto',
+            'right'
+        );
+        $helper->addTableHeader(
+            'col_movement',
+            'text-center',
+            $this->l('Movement'),
+            MpHelperTable::TYPE_TEXT,
+            'movement',
+            true,
+            'auto'
+        );
+        $helper->addTableHeader(
+            'col_date',
+            'text-center',
+            $this->l('Date'),
+            MpHelperTable::TYPE_DATE,
+            'date',
+            true,
+            'auto',
+            'center'
+        );
+        $helper->addTableHeader(
+            'col_employee',
+            'text-center',
+            $this->l('Employee'),
+            MpHelperTable::TYPE_TEXT,
+            'employee',
+            true,
+            'auto'
+        );
+        $rows = $this->getRows();
+        return $helper->generateTable($rows);
     }
 }

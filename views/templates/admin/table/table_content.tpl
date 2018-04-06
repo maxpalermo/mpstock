@@ -44,7 +44,7 @@
                 {/if}
                 {foreach $table.header_columns as $col}    
                     <th class='{$col.classname}' {if $col.width}style='width: {$col.width}'{/if}>
-                        {if $col.search}
+                        {if !$col.search}
                             --
                         {else}
                             {if $col.type=='text' or $col.type=='price' or $col.type=='percentage'}
@@ -53,8 +53,15 @@
                                 <div class="date_range row">
                                     <div class="input-group fixed-width-md center">
                                         <input type="text" class="filter datepicker date-input form-control hasDatepicker" name="table_filter[]" placeholder="{$table.table_content_filter_from}" input_type="date_from">
-                                        <br>
+                                        <span class="input-group-addon">
+                                            <i class="icon-calendar"></i>
+					</span>
+                                    </div>
+                                    <div class="input-group fixed-width-md center">
                                         <input type="text" class="filter datepicker date-input form-control hasDatepicker" name="table_filter[]" placeholder="{$table.table_content_filter_to}" input_type="date_to">
+                                        <span class="input-group-addon">
+                                            <i class="icon-calendar"></i>
+					</span>
                                     </div>
                                 </div>
                             {elseif $col.type=='image' or $col.type=='html'}
@@ -74,38 +81,61 @@
 	</thead>
         <tbody>
         {foreach $table.rows as $row}
-            {if $row.index is even} 
-                {assign var='row_color' value=''}
-            {else}
-                {assign var='row_color' value='class="odd"'}
-            {/if}
-            <tr {$row_color}>
+            <tr class='{cycle values="odd,even"}' value='{$row['id']}'>
                 {if $table.checkbox}
                     <td class="center fixed-width-xs"><input type="checkbox" name='table-checkbox-toggle-row[]'></td>
                 {/if}
-                {foreach $row as $key=>$column}
-                    {assign var='col_type' value=$table.header_columns[$key]}
-                <td>
-                    {if $col_type=='text'}
-                        {$column.value}
-                    {elseif $col_type=='price'}
-                        {displayPrice price=$column.value}
-                    {elseif $col_type=='percentage'}
-                        {$column.value} %
-                    {elseif $col_type=='date'}
-                        {$column.value|date_format:"%Y-%m-$d"}
-                    {elseif $col_type=='image'}
-                        <img src="{$column.value}" style="width: {$column.image.width}; height: {$column.image.height}; object-fit: {$column.image.fit};">
-                    {elseif $col_type=='html'}
-                        <div>
-                            {$column.value}
-                        </div>
-                    {elseif $col_type=='button'}
-                        <button type="button" id="{$column.button.id}" class="btn btn-default" onclick='javascript:{$column.button.onclick}();'>
-                            <i class="icon {$column.button.icon}}" style="color: {$column.button.color};"></i> {$column.button.title}
-			</button>
+                {foreach $row as $key=>$value}
+                    {if $key!='id'}
+                        {assign var='col_type' value=$table.header_columns[$key].type}
+                        {assign var='text_align' value=$table.header_columns[$key].text_align}
+                        {assign var='negative' value=$table.header_columns[$key].negative}
+                        {if $col_type=='text' or $col_type=='price' or $col_type=='percentage' or $col_type=='date'}
+                            {assign var='td_value' value="value='{$value}'"}
+                        {else}
+                            {assign var='td_value' value=""}
+                        {/if}
+                        <td style='text-align: {$text_align}' {$td_value}>
+                            {if $col_type=='text'}
+                                {$value}
+                            {elseif $col_type=='price'}
+                                {if $negative && $value<0}
+                                    <span style='color: #BB2A2A;'>{displayPrice price=$value}</span>
+                                {else}
+                                    <span style='color: #555;'>{displayPrice price=$value}</span>
+                                {/if}
+                            {elseif $col_type=='percentage'}
+                                {if $negative && $value<0}
+                                    <span style='color: #BB2A2A;'>{$value|string_format:"%.2f"} %</span>
+                                {else}
+                                    <span style='color: #555;'>{$value|string_format:"%.2f"} %</span>
+                                {/if}
+                            {elseif $col_type=='int'}
+                                {if $negative && $value<0}
+                                    <span style='color: #BB2A2A;'>{$value}</span>
+                                {else}
+                                    <span style='color: #555;'>{$value}</span>
+                                {/if}
+                            {elseif $col_type=='date'}
+                                {$value|date_format:"%Y-%m-%d"}
+                            {elseif $col_type=='image'}
+                                {if !$value}
+                                    {assign var='img_src' value=$table_row_image.src}
+                                {else}
+                                    {assign var='img_src' value=$value}
+                                {/if}
+                                <img src="{$img_src}" style="width: {$table_row_image.width}; height: {$table_row_image.height}; object-fit: {$table_row_image.fit};">
+                            {elseif $col_type=='html'}
+                                <div>
+                                    {$value}
+                                </div>
+                            {elseif $col_type=='button'}
+                                <button type="button" id="{$column.button.id}" class="btn btn-default" onclick='javascript:{$column.button.onclick}();'>
+                                    <i class="icon {$column.button.icon}}" style="color: {$column.button.color};"></i> {$column.button.title}
+                                </button>
+                            {/if}
+                        </td>
                     {/if}
-                </td>
                 {/foreach}
             </tr>
         {/foreach}

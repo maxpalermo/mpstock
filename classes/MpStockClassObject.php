@@ -54,6 +54,16 @@ Class MpStockClassObject extends ObjectModelCore
     public $id_lang;
     /** @var string errorMessage last error message */
     public $errorMessage;
+    /** @var string reference Product reference **/
+    public $reference;
+    /** @var string name Product name **/
+    public $name;
+    /** @var string employee Employee name **/
+    public $employee;
+    /** @var string image Product image src **/
+    public $image;
+    /** @var string movement Product movement **/
+    public $movement;
     
     public static $definition = array(
         'table' => 'mp_stock',
@@ -135,6 +145,13 @@ Class MpStockClassObject extends ObjectModelCore
             $this->id_lang = (int)$id_lang;
         }
         parent::__construct($id, $this->id_lang, $this->id_shop);
+        if ($id) {
+            $this->reference = $this->getReference();
+            $this->name = $this->getName();
+            $this->image = $this->getImage();
+            $this->employee = $this->getEmployee();
+            $this->movement = $this->getMovement();
+        }
     }
     
     /**
@@ -155,6 +172,120 @@ Class MpStockClassObject extends ObjectModelCore
             $class = substr($class, 0, -10);
         }
         return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
+    }
+    
+    public function getRows($pagination = 50, $page = 50, $reference='', $name='', $movement='', $date_start='', $date_end='', $employee='')
+    {
+        $collection = array();
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('id_mp_stock as id')
+            ->from('mp_stock')
+            ->orderBy('date_add DESC');
+        $result = $db->executeS($sql);
+        if ($result) {
+            foreach ($result as $row) {
+                $object = new MpStockClassObject($row['id']);
+                $collection[] = array(
+                    'id' => $object->id,
+                    'image' => $object->image,
+                    'reference' => $object->reference,
+                    'name' => $object->name,
+                    'price' => $object->price,
+                    'tax_rate' => $object->tax_rate,
+                    'qty' => $object->qty,
+                    'movement' => $object->movement,
+                    'date' => $object->date_add,
+                    'employee' => $object->employee,
+                );
+            }
+            return $collection;
+        }
+        
+        return array();
+    }
+    
+    public function getReference()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('reference')
+            ->from('product')
+            ->where('id_product='.(int)$this->id_product);
+        return $db->getvalue($sql);
+    }
+    
+    public function getNameProduct($id_product)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('name')
+            ->from('product_lang')
+            ->where('id_lang='.(int)$this->id_lang)
+            ->where('id_product='.(int)$id_product);
+        return $db->getvalue($sql);
+    }
+    
+    public function getName()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $id_lang = Context::getContext()->language->id;
+        $sql->select('id_attribute')
+            ->from('product_attribute_combination')
+            ->where('id_product_attribute = ' . (int)$this->id_product_attribute);
+        $name = $this->getNameProduct($this->id_product);
+        $attributes = $db->executeS($sql);
+        foreach($attributes as $attribute) {
+            $attr = new AttributeCore($attribute['id_attribute']);
+            $name .= ' ' . $attr->name[(int)$id_lang];
+        }
+        
+        return $name;
+    }
+    
+    public function getImage()
+    {
+        $shop = new ShopCore(Context::getContext()->shop->id);
+        $product = new ProductCore((int)$this->id_product);
+        $images = $product->getImages(Context::getContext()->language->id);
+
+        foreach ($images as $obj_image) {
+            $image = new ImageCore((int)$obj_image['id_image']);
+            if ($image->cover) {
+                return $shop->getBaseURL(true) . 'img/p/'. $image->getExistingImgPath() . '-small.jpg';
+            }
+        }
+        return '';
+    }
+    
+    public function getEmployee()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('firstname')
+            ->select('lastname')
+            ->from('employee')
+            ->where('id_employee = ' . (int)$this->id_employee);
+        $row = $db->getRow($sql);
+        if ($row) {
+            return $row['firstname'] . ' ' . $row['lastname'];
+        } else {
+            return "";
+        }
+    }
+    
+    public function getMovement()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('name')
+            ->from('mp_stock_type_movement')
+            ->where('id_lang = '.(int)$this->id_lang)
+            ->where('id_shop = '.(int)$this->id_shop)
+            ->where('id_mp_stock_type_movement = '.(int)$this->id_mp_stock_type_movement);
+        
+        return $db->getValue($sql);
     }
     
     public static function getIdMovementByExchangeId($id_stock_exchange)
@@ -247,7 +378,7 @@ Class MpStockClassObject extends ObjectModelCore
         return $result;
     }
     
-    public static function getMovement($id_movement, $exchange = false)
+    public static function getMovementById($id_movement, $exchange = false)
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();
@@ -269,7 +400,7 @@ Class MpStockClassObject extends ObjectModelCore
         return $row;
     }
     
-    public static function getReference($id_product)
+    public static function getReferenceById($id_product)
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();

@@ -60,9 +60,9 @@ function ajaxImportXML(data)
     .done(function(result){
         result.forEach(function(item, index){
             if(item.error !== 0) {
-                $('#form-mp_stock').prepend(item.error);
+                $('#section-messages').append(item.error);
             } else {
-                $('#form-mp_stock').prepend(item.confirmation);
+                $('#section-messages').append(item.confirmation);
             }   
         });
         ajaxRefreshTable();
