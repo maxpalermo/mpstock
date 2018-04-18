@@ -1,0 +1,120 @@
+<?php
+/**
+* 2007-2018 PrestaShop
+*
+* NOTICE OF LICENSE
+*
+* This source file is subject to the Academic Free License (AFL 3.0)
+* that is bundled with this package in the file LICENSE.txt.
+* It is also available through the world-wide-web at this URL:
+* http://opensource.org/licenses/afl-3.0.php
+* If you did not receive a copy of the license and are unable to
+* obtain it through the world-wide-web, please send an email
+* to license@prestashop.com so we can send you a copy immediately.
+*
+* DISCLAIMER
+*
+* Do not edit or add to this file if you wish to upgrade PrestaShop to newer
+* versions in the future. If you wish to customize PrestaShop for your
+* needs please refer to http://www.prestashop.com for more information.
+*
+*  @author    Massimiliano Palermo <info@mpsoft.it>
+*  @copyright 2007-2018 Digital Solutions®
+*  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+*  International Registered Trademark & Property of PrestaShop SA
+*/
+
+Class MpStockImportObjectModel extends ObjectModelCore
+{
+    public static $definition = array(
+        'table' => 'mp_stock_import',
+        'primary' => 'id_mp_stock_import',
+        'multilang' => false,
+        'fields' => array(
+            'id_type_document' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedId',
+                'required' => 'true',
+            ),
+            'sign' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isInt',
+                'required' => 'true',
+            ),
+            'filename' => array(
+                'type' => self::TYPE_STRING,
+                'validate' => 'isString',
+                'required' => 'true',
+            ),
+            'id_shop' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedId',
+                'required' => 'true',
+            ),
+            'id_employee' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedId',
+                'required' => 'true',
+            ),
+            'date_movement' => array(
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
+                'required' => 'true',
+            ),
+            'date_add' => array(
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
+                'required' => 'true',
+            ),
+        ),
+    );
+    
+    /**@var int Id table **/
+    public $id_mp_stock_import;
+    /**@var int Id type document **/
+    public $id_type_document;
+    /**@var int sign **/
+    public $sign;
+    /**@var string import file name **/
+    public $filename;
+    /**@var int Id language **/
+    public $id_lang;
+    /**@var int Id shop **/
+    public $id_shop;
+     /**@var int Id employee **/
+    public $id_employee;
+     /**@var date date creation **/
+    public $date_movement;
+     /**@var date date creation **/
+    public $date_add;
+    
+    public function __construct($id = null, $id_lang = null, $id_shop = null) {
+        if (!$id_lang) {
+            $this->id_lang = (int)ContextCore::getContext()->language->id;
+        }
+        if (!$id_shop) {
+            $this->id_shop = (int)ContextCore::getContext()->shop->id;
+        }
+        parent::__construct($id, $id_lang, $id_shop);
+    }
+    
+    /**
+     * Non-static method which uses AdminController::translate()
+     *
+     * @param string  $string Term or expression in english
+     * @param string|null $class Name of the class
+     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
+     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
+     * @return string The translation if available, or the english default text.
+     */
+    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
+    {
+        if ($class === null || $class == 'AdminTab') {
+            $class = substr(get_class($this), 0, -10);
+        } elseif (strtolower(substr($class, -10)) == 'controller') {
+            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
+            $class = substr($class, 0, -10);
+        }
+        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
+    }
+}

@@ -28,7 +28,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockMovementClassObject.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockMovementObjectModel.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockHelperObject.php';
 
 class MpStock extends Module
@@ -40,6 +40,7 @@ class MpStock extends Module
     protected $mpMovement;
     public $link;
     public $smarty;
+    protected $messages = array();
 
     public function __construct()
     {
@@ -61,6 +62,21 @@ class MpStock extends Module
         $this->id_shop = (int) Context::getContext()->shop->id;
         $this->link = new LinkCore();
         $this->smarty = Context::getContext()->smarty;
+    }
+    
+    public function addError($message)
+    {
+        $this->messages[] = $this->displayError($message);
+    }
+    
+    public function addWarning($message)
+    {
+        $this->messages[] = $this->displayWarning($message);
+    }
+    
+    public function addConfirmation($message)
+    {
+        $this->messages[] = $this->displayConfirmation($message);
     }
     
     public function ajax()
@@ -97,36 +113,40 @@ class MpStock extends Module
     {
         $sql = array();
 
+        $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock_import` (
+            `id_mp_stock_import` int(11) NOT NULL AUTO_INCREMENT,
+            `id_type_document` int(11) NOT NULL,
+            `sign` int(11) NOT NULL,
+            `filename` varchar(255) NOT NULL,
+            `id_shop` int(11) NOT NULL,
+            `id_employee` int(11) NOT NULL,
+            `date_add` datetime NOT NULL,
+            `date_add` datetime NOT NULL,
+            `date_upd` timestamp NOT NULL,
+            PRIMARY KEY  (`id_mp_stock_import`)
+        ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
+        
+        $sql[] = "ALTER TABLE `"._DB_PREFIX_."mp_stock_import` ADD UNIQUE `idx_unique_filename` (`filename`);";
+        
         $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock` (
             `id_mp_stock` int(11) NOT NULL AUTO_INCREMENT,
+            `id_mp_stock_import` int(11) NOT NULL DEFAULT 0,
             `id_mp_stock_exchange` int(11) NOT NULL,
             `id_shop` int(11) NOT NULL,
             `id_product` int(11) NOT NULL,
             `id_product_attribute` int(11) NOT NULL,
+            `name` varchar(255) NOT NULL,
             `id_mp_stock_type_movement` int(11) NOT NULL,
             `qty` varchar(10) NOT NULL,
             `price` decimal(20,6) NOT NULL,
+            `wholesale_price` decimal(20,6) NOT NULL,
             `tax_rate` decimal(20,6) NOT NULL,
-            `date_movement` date NULL,
+            `date_movement` datetime NULL,
             `sign` int(11) NOT NULL,
             `date_add` timestamp NOT NULL,
             `id_employee` int NOT NULL,
             PRIMARY KEY  (`id_mp_stock`)
         ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
-        
-        $sql[] = "ALTER TABLE `"._DB_PREFIX_."mp_stock` 
-            ADD UNIQUE `idx_import_unique` (
-            `id_product`, 
-            `id_product_attribute`, 
-            `date_movement`
-        );";
-        
-        $sql[] = "ALTER TABLE `"._DB_PASSWD_."mp_stock` ADD UNIQUE `idx_import_unique` ("
-            . "`id_product`,"
-            . "`id_product_attribute`,"
-            . "`date_movement`,"
-            . "`sign`"
-            . ") USING BTREE;";
         
         $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock_type_movement` (
             `id_mp_stock_type_movement` int(11) NOT NULL AUTO_INCREMENT,
@@ -149,16 +169,20 @@ class MpStock extends Module
             `name` varchar(255) NULL,
             `qty` int(11) NOT NULL,
             `type_movement` varchar(255) NOT NULL,
-            `date_add` date NOT NULL,
+            `date_add` datetime NOT NULL,
             `id_employee_movement` int(11) NOT NULL,
             `employee` varchar(255) NULL,
             PRIMARY KEY  (`id_mp_stock_list_movements`)
         ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
 
         foreach ($sql as $query) {
-            if (Db::getInstance()->execute($query) == false) {
-                $this->_errors[] = Db::getInstance()->getMsgError();
-                return false;
+            try {
+                if (Db::getInstance()->execute($query) == false) {
+                    $this->addError(Db::getInstance()->getMsgError());
+                    return false;
+                }
+            } catch (Exception $ex) {
+                PrestaShopLoggerCore::addLog('Install MPSTOCK: error '.$ex->getCode().' '.$ex->getMessage());
             }
         }
         
@@ -190,7 +214,7 @@ class MpStock extends Module
         $tab->active     = $active;
         
         if (!$tab->add()) {
-            $this->_errors[] = $this->l('Error during Tab install.');
+            $this->addError($this->l('Error during Tab install.'));
             return false;
         }
         return true;
@@ -208,6 +232,15 @@ class MpStock extends Module
             $tab = new Tab((int)$id_tab);
             return $tab->delete();
         }
+    }
+    
+    /**
+     * Return the admin class name
+     * @return string Admin class name
+     */
+    public function getAdminClassName()
+    {
+        return $this->adminClassName;
     }
     
     /**
@@ -230,6 +263,7 @@ class MpStock extends Module
     
     public function getContent()
     {
+        $this->messages = array();
         if (Tools::isSubmit('ajax')) {
             $action = 'ajaxProcess' . Tools::getValue('action');
             $this->$action();
@@ -239,22 +273,18 @@ class MpStock extends Module
             return $this->initForm();
         } elseif (Tools::isSubmit('submitSaveMovement')) {
             if ($this->processSaveMovement()) {
-                $message = $this->displayConfirmation($this->l('Movement type saved successfully.'));
-            } else {
-                $message = '';
+                $this->addConfirmation($this->l('Movement type saved successfully.'));
             }
-            return $message . $this->initList() . $this->initScript();
+            return implode('<br>', $this->messages).$this->initList() . $this->initScript();
         } elseif (Tools::isSubmit('deleteMovement')) {
             if ($this->processDeleteMovement()) {
-                $message = $this->displayConfirmation($this->l('Movement type deleted successfully.'));
-            } else {
-                $message = '';
+                $this->addConfirmation($this->l('Movement type deleted successfully.'));
             }
-            return $message . $this->initList() . $this->initScript();
+            return implode('<br>', $this->messages).$this->initList().$this->initScript();
         } elseif (Tools::isSubmit('editMovement')) {
             return $this->initForm();
         } else {
-            return $this->initList() . $this->initScript();
+            return implode('<br>', $this->messages).$this->initList() . $this->initScript();
         }
     }
     
@@ -276,7 +306,6 @@ class MpStock extends Module
                         'prefix' => '<i class="icon-chevron-right"></i>',
                         'suffix' => '<i class="icon-gear"></i>',
                         'class' => 'input fixed-width-sm',
-                        'readonly' => true,
                     ),
                     array(
                         'required' => true,
@@ -436,7 +465,7 @@ class MpStock extends Module
                 'search' => false,
             ),
         );
-        $this->mpMovement = new MpStockMovementClassObject();
+        $this->mpMovement = new MpStockMovementObjectModel();
         $list = $this->mpMovement->getListMovements();
         
         $helper = new HelperListCore();
@@ -482,8 +511,13 @@ class MpStock extends Module
     
     public function processSaveMovement()
     {
-        $movement = new MpStockMovementClassObject();
-        $movement->id_mp_stock_type_movement = (int)Tools::getValue('input_text_id', 0);
+        if ((int)Tools::getValue('input_text_id_movement', 0) == 0) {
+            $this->addError($this->l('Please, insert a valid movement id.'));
+            return false;
+        }
+        $movement = new MpStockMovementObjectModel();
+        $movement->force_id = true;
+        $movement->id_mp_stock_type_movement = (int)Tools::getValue('input_text_id_movement', 0);
         $movement->id_lang = (int)$this->id_lang;
         $movement->id_shop = (int)$this->id_shop;
         $movement->name = pSQL(Tools::getValue('input_text_name', ''));
@@ -493,7 +527,7 @@ class MpStock extends Module
         $result = $movement->save();
         PrestaShopLoggerCore::addLog('Save movement: ' . (int)$result);
         if (!$result) {
-            $this->_errors[] = sprintf($this->l('Error saving movement: %s'), Db::getInstance()->getMsgError());
+            $this->addError(sprintf($this->l('Error saving movement: %s'), Db::getInstance()->getMsgError()));
             return false;
         }
         return true;
@@ -502,12 +536,12 @@ class MpStock extends Module
     public function processDeleteMovement()
     {
         $id = (int)Tools::getValue('deleteMovement', 0);
-        $movement = new MpStockMovementClassObject($id);
+        $movement = new MpStockMovementObjectModel($id);
         
         $result = $movement->delete();
         PrestaShopLoggerCore::addLog('Deleted movement: ' . (int)$result);
         if (!$result) {
-            $this->_errors[] = sprintf($this->l('Error deleting movement: %s'), Db::getInstance()->getMsgError());
+            $this->addError(sprintf($this->l('Error deleting movement: %s'), Db::getInstance()->getMsgError()));
             return false;
         }
         return true;

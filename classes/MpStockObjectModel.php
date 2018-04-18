@@ -24,8 +24,10 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockClassObject extends ObjectModelCore
+Class MpStockObjectModel extends ObjectModelCore
 {
+    /** @var bool if set, movement has another product */
+    public $id_mp_stock_import;
     /** @var bool if set, movement has another product */
     public $id_mp_stock_exchange;
     /** @var int product id */
@@ -38,6 +40,8 @@ Class MpStockClassObject extends ObjectModelCore
     public $qty;
     /** @var float product price */
     public $price;
+    /** @var float product wholesale price */
+    public $wholesale_price;
     /** @var float product tax rate */
     public $tax_rate;
     /** @var date if movement has imported, set the date of file xml */
@@ -70,6 +74,11 @@ Class MpStockClassObject extends ObjectModelCore
         'primary' => 'id_mp_stock',
         'multilang' => false,
         'fields' => array(
+            'id_mp_stock_import' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedId',
+                'required' => 'false',
+            ),
             'id_mp_stock_exchange' => array(
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedId',
@@ -90,6 +99,11 @@ Class MpStockClassObject extends ObjectModelCore
                 'validate' => 'isUnsignedId',
                 'required' => 'true',
             ),
+            'name' => array(
+                'type' => self::TYPE_STRING,
+                'validate' => 'isString',
+                'required' => 'true',
+            ),
             'id_mp_stock_type_movement' => array(
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedId',
@@ -100,14 +114,19 @@ Class MpStockClassObject extends ObjectModelCore
                 'validate' => 'isInt',
                 'required' => 'true',
             ),
+            'tax_rate' => array(
+                'type' => self::TYPE_FLOAT,
+                'validate' => 'isFloat',
+                'required' => 'true',
+            ),
             'price' => array(
                 'type' => self::TYPE_FLOAT,
                 'validate' => 'isPrice',
                 'required' => 'true',
             ),
-            'tax_rate' => array(
+            'wholesale_price' => array(
                 'type' => self::TYPE_FLOAT,
-                'validate' => 'isFloat',
+                'validate' => 'isPrice',
                 'required' => 'true',
             ),
             'date_movement' => array(
@@ -185,7 +204,7 @@ Class MpStockClassObject extends ObjectModelCore
         $result = $db->executeS($sql);
         if ($result) {
             foreach ($result as $row) {
-                $object = new MpStockClassObject($row['id']);
+                $object = new MpStockObjectModel($row['id']);
                 $collection[] = array(
                     'id' => $object->id,
                     'image' => $object->image,
@@ -201,7 +220,6 @@ Class MpStockClassObject extends ObjectModelCore
             }
             return $collection;
         }
-        
         return array();
     }
     
@@ -507,6 +525,12 @@ Class MpStockClassObject extends ObjectModelCore
     }
     
     public function add($auto_date = true, $null_values = false) {
+        if (empty($this->date_add)) {
+            $this->date_add = date('Y-m-d H:i:s');
+        }
+        if (empty($this->id_mp_stock_import)) {
+            $this->id_mp_stock_import = 0;
+        }
         try {
             $result = parent::add($auto_date, $null_values);
         } catch (Exception $ex) {
@@ -523,6 +547,12 @@ Class MpStockClassObject extends ObjectModelCore
     }
     
     public function update($null_values = false) {
+        if (empty($this->date_add)) {
+            $this->date_add = date('Y-m-d H:i:s');
+        }
+        if (empty($this->id_mp_stock_import)) {
+            $this->id_mp_stock_import = 0;
+        }
         $qty = $this->getQuantity($this->id);
         $result = parent::update($null_values);
         if ($result) {
@@ -548,7 +578,7 @@ Class MpStockClassObject extends ObjectModelCore
         }
         
         foreach($id_movements as $id_movement) {
-            $movement = new MpStockClassObject($id_movement);
+            $movement = new MpStockObjectModel($id_movement);
             if ($movement) {
                 $this->id = $movement->id;
                 $this->id_product = $movement->id_product;

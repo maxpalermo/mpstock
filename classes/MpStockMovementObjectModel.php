@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockMovementClassObject extends ObjectModelCore
+Class MpStockMovementObjectModel extends ObjectModelCore
 {
     public static $definition = array(
         'table' => 'mp_stock_type_movement',

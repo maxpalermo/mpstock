@@ -28,7 +28,12 @@ ini_set('max_execution_time', 300); //300 seconds = 5 minutes
 ini_set('post_max_size', '128M');
 ini_set('upload_max_filesize', '128M');
 
-require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockClassObject.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminImportXML.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperForm.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListDocuments.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListMovements.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockImportObjectModel.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockObjectModel.php';
 
 class AdminMpStockController extends ModuleAdminController
 {
@@ -53,8 +58,8 @@ class AdminMpStockController extends ModuleAdminController
     public function __construct()
     {   
         $this->bootstrap = true;
-        $this->context = Context::getContext();
         $this->className = 'AdminMpStock';
+        $this->context = Context::getContext();
         $this->token = Tools::getValue('token', Tools::getAdminTokenLite($this->className));
         parent::__construct();
         $this->id_lang = (int)ContextCore::getContext()->language->id;
@@ -64,37 +69,73 @@ class AdminMpStockController extends ModuleAdminController
         $this->smarty = Context::getContext()->smarty;
     }
 
+    public function addError($message)
+    {
+        $this->errors[] = Tools::displayError($message);
+    }
+    
+    public function addWarning($message)
+    {
+        $this->warnings[] = $this->displayWarning($message);
+    }
+    
+    public function addConfirmation($message)
+    {
+        $this->confirmations[] = $this->displayConfirmation($message);
+    }
+    
     public function initContent()
     {
-        $this->errors = array();
-        $this->messages = array();
         $this->smarty = Context::getContext()->smarty;
         $this->link = new LinkCore();
-        
-        /**
-         * AJAX CALL
-         */
+        $list_content = '';
+        $form_content = '';
+        /** Ajax call **/
         if (Tools::isSubmit('ajax')) {
             $action = 'ajaxProcess' . ucfirst(Tools::getValue('action'));
             print $this->$action();
             exit();
         }
-        
-        /**
-         * PAGINATION CALL
-         */
-        if (Tools::isSubmit('submitFiltermp_stock')) {
-            $this->initPagination();
+        /** Import XML file **/
+        if (Tools::isSubmit('submitFormImport')) {
+            if ($this->processImportXML()) {
+                $this->addConfirmation($this->l('Import from XML done.'));
+            }
         }
-        
-        /**
-         * DISPLAY ADD MOVEMENT
-         */
+        /** Get Stock movements **/
+        if (Tools::isSubmit('id_mp_stock_import') && Tools::isSubmit('updatemp_stock_import')) {
+            $list = new MpStockAdminHelperListMovements($this->module);
+            $list_content = $list->display((int)Tools::getValue('id_mp_stock_import'));
+        } else {
+            /** Show deafult list **/
+            $list = new MpStockAdminHelperListDocuments($this->module);
+            $list_content = $list->display();
+            $form = new MpStockAdminHelperForm($this->module);
+            $form_content = $form->display();
+        }
+        /** Show documents **/
+        if (Tools::isSubmit('show_documents')) {
+            $list = new MpStockAdminHelperListDocuments($this->module);
+            $list_content = $list->display();
+            $form = new MpStockAdminHelperForm($this->module);
+            $form_content = $form->display();
+        }
+        /** Show movements **/
+        if (Tools::isSubmit('show_movements')) {
+            $list = new MpStockAdminHelperListMovements($this->module);
+            $list_content = $list->display();
+            $form_content = '';
+        }
+        /** Add movement **/
         if (Tools::isSubmit('addMovement')) {
-            $this->content = $this->initForm() . $this->initScript();
-            parent::initContent();
-            return;
+            $form_content = $this->initForm() . $this->initScript();
         }
+        
+        $this->content = $form_content.$list_content;
+        
+        parent::initContent();
+        return;
+        
         
         /**
          * DISPLAY DEFAULT PAGE
@@ -110,7 +151,7 @@ class AdminMpStockController extends ModuleAdminController
             } else {
                 $id_movement = (int)Tools::getValue('id_mp_stock');
             }
-            MpStockClassObject::deletemovement($id_movement);
+            MpStockObjectModel::deletemovement($id_movement);
             if (Db::getInstance()->getNumberError() == 0) {
                 $this->messages = array(
                     $this->module->displayConfirmation($this->l('Selected movements deleted successfully'))
@@ -126,14 +167,17 @@ class AdminMpStockController extends ModuleAdminController
         } else {
             $this->content = implode('<br>', $this->messages) . $this->initList() . $this->initScript();
         }
+        
+        $helperList = new MpStockAdminHelperList($this->module);
+        $this->content = $helperList->display();
+        
         parent::initContent();
     }
     
-    private function initPagination()
+    protected function processImportXML()
     {
-        $this->current_page = (int)Tools::getValue('submitFiltermp_stock', 1);
-        $this->page = (int)Tools::getValue('page');
-        $this->selected_pagination = (int)Tools::getvalue('selected_pagination', 50);
+        $importXML = new MpStockAdminImportXML($this->module, $this);
+        $result = $importXML->import();
     }
     
     private function initForm()
@@ -215,6 +259,12 @@ class AdminMpStockController extends ModuleAdminController
             ),
             'employee' => array(
                 'title' => $this->l('Employee'),
+                'width' => 'auto',
+                'type' => 'text',
+                'align' => 'text-left'
+            ),
+            'filename' => array(
+                'title' => $this->l('Import filename'),
                 'width' => 'auto',
                 'type' => 'text',
                 'align' => 'text-left'
@@ -478,7 +528,7 @@ class AdminMpStockController extends ModuleAdminController
     
     public function getRows($pagination = 50, $page = 1)
     {
-        $stock = new MpStockClassObject();
+        $stock = new MpStockObjectModel();
         $rows =  $stock->getRows($pagination, $page);
         return $rows;
     }
@@ -612,12 +662,16 @@ class AdminMpStockController extends ModuleAdminController
             ->where('pa.ean13=\''.pSQL($ean13).'\'');
         
         $product = $db->getRow($sql);
+        if (!$product) {
+            return array();
+        }
+        
         $product['error'] = 0;
         $product['confirmation'] = $this->module->displayConfirmation(
             sprintf(
                 "Product %s %s has been processed.",
-                $product['reference'],
-                $product['ean13']
+                isset($product['reference'])?$product['reference']:'',
+                isset($product['ean13'])?$product['ean13']:''
             )
         );
         
@@ -639,13 +693,13 @@ class AdminMpStockController extends ModuleAdminController
         }
         $params['message'] = $content;
         $params['error'] = $error;
-        $params;
     }
     
     public function ajaxProcessImportXML()
     {
         /** Check if user is logged **/
         $cookie = new CookieCore('psAdmin');
+        
         if (!$cookie->isLoggedBack()) {
             print Tools::jsonEncode(array(
                 array(
@@ -657,7 +711,41 @@ class AdminMpStockController extends ModuleAdminController
             exit();
         }
         
+        $this->id_lang = $cookie->id_lang;
+        $this->id_shop = (int)Context::getContext()->shop->id;
+        $this->id_employee = $cookie->id_employee;
+        
         $file = Tools::fileAttachment('inputFileXML');
+        $filename = $file['name'];
+        
+        $importObj = new MpStockImportObjectModel();
+        $importObj->filename = $filename;
+        $importObj->id_employee = (int)$this->id_employee;
+        $importObj->id_shop = (int)$this->id_shop;
+        $importObj->date_add = date('Y-m-d H:i:s');
+        try {
+            $id_import = (int)$importObj->add();
+        } catch (Exception $ex) {
+            $json = array(
+                array(
+                    $this->displayMessage(
+                        array(
+                            'type' => self::TYPE_MESSAGE_ERROR,
+                            'reference' => $this->l('Invalid reference'),
+                            'message' => $ex->getMessage(),
+                        )
+                    ),
+                )
+            );
+            
+            print Tools::jsonEncode($json);
+            exit();
+        }
+        
+        if ($id_import) {
+            $id_import = (int)Db::getInstance()->Insert_ID();
+        }
+        
         $output = array();
         $json = array();
         if ($file['content']) {
@@ -713,8 +801,9 @@ class AdminMpStockController extends ModuleAdminController
                     ));
                     continue;
                 }
-                $stock = new MpStockClassObject();
+                $stock = new MpStockObjectModel();
                 $stock->id = 0;
+                $stock->id_mp_stock_import = $id_import;
                 $stock->id_mp_stock_type_movement = 0;
                 $stock->id_mp_stock_exchange = 0;
                 $stock->id_product = $product['id_product'];
@@ -843,7 +932,7 @@ class AdminMpStockController extends ModuleAdminController
             exit();
         }
         $result = array();
-        $mpstock = new MpStockClassObject(null, $this->id_lang, $this->id_shop);
+        $mpstock = new MpStockObjectModel(null, $this->id_lang, $this->id_shop);
         $result['tax_rate'] = $mpstock->getTaxRate($id_product);
         $result['combinations'] = $mpstock->getProductAttributes($id_product);
         print Tools::jsonEncode($result);
@@ -865,7 +954,7 @@ class AdminMpStockController extends ModuleAdminController
             );
             exit();
         }
-        $mpstock = new MpStockClassObject(null, $this->id_lang, $this->id_shop);
+        $mpstock = new MpStockObjectModel(null, $this->id_lang, $this->id_shop);
         print Tools::jsonEncode($mpstock->getProductAttributeValues($id_product_attribute));
         exit();
     }
@@ -939,7 +1028,7 @@ class AdminMpStockController extends ModuleAdminController
     public function ajaxProcessDeleteMovement()
     {
         $id_movement = (int)Tools::getValue('id_movement', 0);
-        $mp_stock = new MpStockClassObject($id_movement);
+        $mp_stock = new MpStockObjectModel($id_movement);
         if ($mp_stock->delete()) {
             print Tools::jsonEncode(
                 array(
@@ -977,7 +1066,7 @@ class AdminMpStockController extends ModuleAdminController
             );
             exit();
         }
-        $stock = new MpStockClassObject();
+        $stock = new MpStockObjectModel();
         $stock->id_mp_stock_exchange = $row['exchange'];
         $stock->id_shop = $this->id_shop;
         $stock->id_product = $row['id_product'];
@@ -1091,7 +1180,7 @@ class AdminMpStockController extends ModuleAdminController
             $sign = (int)$par['input_hidden_sign'] * -1;
         }
         
-        $stock = new MpStockClassObject();
+        $stock = new MpStockObjectModel();
         $stock->id_mp_stock = (int)$par['input_text_id'];
         $stock->id_mp_stock_exchange = $id_mp_stock_exchange;
         $stock->id_shop = (int)$this->id_shop;
@@ -1111,8 +1200,8 @@ class AdminMpStockController extends ModuleAdminController
         }
         if ($insert) {
             //UPDATE PRESTASHOP STOCK AVAILABLE
-            $id_stock_available = (int)MpStockClassObject::getIdStockAvailable($stock->id_product_attribute);
-            MpStockClassObject::updateStock($id_stock_available, $stock->qty);
+            $id_stock_available = (int)MpStockObjectModel::getIdStockAvailable($stock->id_product_attribute);
+            MpStockObjectModel::updateStock($id_stock_available, $stock->qty);
             if ($par['input_hidden_transform'] && $id_mp_stock_exchange == 0) {
                 return $this->insertmovement(
                     $stock->id,

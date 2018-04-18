@@ -22,7 +22,9 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 **/
-
+$(document).ready(function(){
+    $('#input')
+});
 function importXML()
 {
     $('.module_confirmation').remove();
@@ -31,13 +33,15 @@ function importXML()
             .attr('type', 'file')
             .attr('name', 'inputFileXML')
             .attr('accept', '.xml')
+            .attr('id', 'input_file_import')
             .on('change', function(){
                 var data = new FormData();
                 data.append(
                     'inputFileXML',
                     this.files[0]
                 );
-                ajaxImportXML(data);
+                $('#form-mp_stock').submit();
+                //ajaxImportXML(data);
             })
     );
     
@@ -48,7 +52,7 @@ function importXML()
 function ajaxImportXML(data)
 {
     data.append('ajax', true);
-    data.append('action', 'ImportXML');
+    data.append('action', 'importXML');
     $.ajax({
         type: 'POST',
         dataType: 'json',
@@ -65,8 +69,8 @@ function ajaxImportXML(data)
                 $('#section-messages').append(item.confirmation);
             }   
         });
-        ajaxRefreshTable();
-        $('input[name="inputFileXML"]').remove();
+        location.reload();
+        //$('input[name="inputFileXML"]').remove();
     })
     .fail(function(){
         jAlert("AJAX ERROR");
