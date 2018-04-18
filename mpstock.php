@@ -30,6 +30,8 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockMovementObjectModel.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockHelperObject.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockProductExtraHelperForm.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockProductExtraHelperList.php';
 
 class MpStock extends Module
 {
@@ -82,7 +84,7 @@ class MpStock extends Module
     public function ajax()
     {
         if (Tools::isSubmit('ajax')) {
-            $action = 'ajaxProcess' . Tools::getValue('action');
+            $action = 'ajaxProcess' . Tools::ucfirst(Tools::getValue('action'));
             $this->$action();
             exit();
         }
@@ -549,23 +551,22 @@ class MpStock extends Module
     
     public function hookDisplayAdminProductsExtra()
     {
-        require_once $this->getPath().'/classes/ProductExtraForm.php';
+        /** Check pagination **/
         
-        $id_product = (int)Tools::getValue('id_product');
-        $form = new MpStockProductExtraForm(
-            $this,
-            array(
-                'search_in_orders' => 1,
-                'search_in_slips' => 1,
-                'search_in_movements'=> 1,
-                'date_start' => '',
-                'date_end' => '',
-                'id_product' => (int)$id_product,
-                'id_employee' => (int) Context::getContext()->employee->id,
-                'module_token' => Tools::encrypt($this->name),
-            )
-        );
-        return $form->display();
+        if (Tools::isSubmit('submitFiltermp_stock')) {
+            
+        }
+        /** Check if has been submitted find button **/
+        if (Tools::isSubmit('submitFormFindMovements') || Tools::isSubmit('show_movements')) {           
+            /** Get list movements **/
+            $this->smarty->assign('key_tab', 'ModuleMpstock');
+            $list = new MpStockProductExtraHelperList($this);
+            return $list->display().$this->smarty->fetch($this->getPath().'views/templates/admin/form_validate.tpl');
+        }
+        
+        /** Display default form **/
+        $form = new MpStockProductExtraHelperForm($this);
+        return $form->display().$this->smarty->fetch($this->getPath().'views/templates/admin/form_validate.tpl');
     }
     
     public function hookDisplayBackOfficeHeader()

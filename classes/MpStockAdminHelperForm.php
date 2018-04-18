@@ -93,7 +93,7 @@ Class MpStockAdminHelperForm extends HelperFormCore
         $fields_form = array(
             'form' => array(
                 'legend' => array(
-                    'title' => $this->l('Import XML document'),
+                    'title' => $this->module->l('Import XML document', get_class($this)),
                     'icon' => 'icon-download',
                 ),
                 'input' => array(
@@ -108,53 +108,31 @@ Class MpStockAdminHelperForm extends HelperFormCore
                     array(
                         'type' => 'file',
                         'multiple' => false,
-                        'label' => $this->l('Select xml file to import'),
+                        'label' => $this->module->l('Select xml file to import', get_class($this)),
                         'name' => 'input_file_import',
                         'accept' => '.xml'
                     )
                 ),
                 'submit' => array(
-                    'title' => $this->l('Import'),
-                    'confirm' => $this->l('Import selected file?'),
-                    'icon' => 'process-icon-upload',
+                    'title' => $this->module->l('Import', get_class($this)),
+                    'confirm' => $this->module->l('Import selected file?', get_class($this)),
+                    'icon' => 'process-icon-import',
                 ),
                 'buttons' => array(
-                    'show_document' => array(
-                        'title' => $this->l('Show Documents'),
-                        'confirm' => $this->l('Import selected file?'),
-                        'icon' => 'process-icon-compress',
-                        'href' => $current_index.'&show_documents',
-                    ),
                     'show_movements' => array(
-                        'title' => $this->l('Show Movements'),
-                        'confirm' => $this->l('Import selected file?'),
-                        'icon' => 'process-icon-expand',
+                        'title' => $this->module->l('Show Movements', get_class($this)),
+                        'icon' => 'process-icon-duplicate',
                         'href' => $current_index.'&show_movements',
+                    ),
+                    'get_report' => array(
+                        'title' => $this->module->l('Get errors report', get_class($this)),
+                        'icon' => 'process-icon-flag',
+                        'href' => $current_index.'&ajax=true&action=getErrorsReport',
                     ),
                 ),
             )
         );
         
         return (array($fields_form));
-    }
-    
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
-    {
-        if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
-        }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
 }

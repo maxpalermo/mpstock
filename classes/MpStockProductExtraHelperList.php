@@ -29,7 +29,7 @@
  * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
  */
 
-Class MpStockAdminHelperListDocuments extends HelperListCore
+Class MpStockProductExtraHelperList extends HelperListCore
 {
     public $context;
     public $values;
@@ -39,7 +39,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
     protected $cookie;
     protected $className = 'AdminMpStock';
     protected $localeInfo;
-    protected $table_name = 'mp_stock_import';
+    protected $table_name = 'mp_stock';
     
     public function __construct($module)
     {
@@ -48,7 +48,6 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $this->link = new LinkCore();
         $this->values = array();
         $this->id_lang = (int)$this->context->language->id;
-        $this->id_shop = (int)$this->context->shop->id;
         parent::__construct();
         $this->cookie = Context::getContext()->cookie;
         if (Context::getContext()->language->iso_code == 'it') {
@@ -64,12 +63,17 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         }
     }
     
-    public function display()
+    public function display($id_mp_stock_import = 0)
     {
         $this->bootstrap = true;
-        $this->currentIndex = $this->context->link->getAdminLink($this->className, false);
-        $this->identifier = 'id_mp_stock_import';
-        $this->no_link = false;
+        $this->actions = array('edit');
+        $this->currentIndex = $this->context->link->getAdminLink('AdminProducts', false)
+            .'&key_tab=ModuleMpstock'
+            .'&id_product='.Tools::getValue('id_product', 0)
+            .'&updateproduct'
+            .'&show_movements';
+        $this->identifier = 'id_mp_stock';
+        $this->no_link = true;
         $this->page = Tools::getValue('submitFilterconfiguration', 1);
         $this->_default_pagination = Tools::getValue('configuration_pagination', 20);
         $this->show_toolbar = true;
@@ -86,28 +90,39 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
                 'desc' => $this->module->l('Export to XML', get_class($this)),
                 'href' => 'javascript:exportXML();',
             ),
+            'back' => array(
+                'desc' => $this->module->l('Back to documents', get_class($this)),
+                'href' => $this->link->getAdminLink($this->className),
+            ),
         );
         $this->shopLinkType='';
         $this->simple_header = false;
-        $this->token = Tools::getAdminTokenLite($this->className);
-        $this->title = $this->module->l('Documents found', get_class($this));
-        $this->table = 'mp_stock_import';
+        $this->token = Tools::getAdminTokenLite('AdminProducts');
+        $this->title = $this->module->l('Movements found', get_class($this));
+        $this->table = 'mp_stock';
         
-        $list = $this->getList();
+        $list = $this->getList($id_mp_stock_import);
         $fields_display = $this->getFields();
         
         return $this->generateList($list, $fields_display);
     }
     
-    protected function getFields()
+    private function getFields()
     {
         $list = array();
         $this->addText(
             $list,
             $this->module->l('Id', get_class($this)),
-            'id_mp_stock_import',
+            'id_mp_stock',
             48,
             'text-right'
+        );
+        $this->addHtml(
+            $list,
+            $this->module->l('Image', get_class($this)),
+            'image',
+            48,
+            'text-center'
         );
         $this->addText(
             $list,
@@ -122,6 +137,48 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
             'filename',
             'auto',
             'text-left'
+        );
+        $this->addText(
+            $list,
+            $this->module->l('Reference', get_class($this)),
+            'reference',
+            'auto',
+            'text-left'
+        );
+        $this->addText(
+            $list,
+            $this->module->l('Name', get_class($this)),
+            'name',
+            'auto',
+            'text-left'
+        );
+        $this->addPrice(
+            $list,
+            $this->module->l('Wholesale Price', get_class($this)),
+            'wholesale_price',
+            'auto',
+            'text-right'
+        );
+        $this->addPrice(
+            $list,
+            $this->module->l('Price', get_class($this)),
+            'price',
+            'auto',
+            'text-right'
+        );
+        $this->addHtml(
+            $list,
+            $this->module->l('Tax rate', get_class($this)),
+            'tax_rate',
+            'auto',
+            'text-right'
+        );
+        $this->addHtml(
+            $list,
+            $this->module->l('Qty', get_class($this)),
+            'qty',
+            48,
+            'text-right'
         );
         $this->addDate(
             $list,
@@ -142,7 +199,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         return $list;
     }
     
-    protected function addText(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addText(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -155,7 +212,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $list[$key] = $item;
     }
     
-    protected function addDate(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addDate(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -168,7 +225,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $list[$key] = $item;
     }
     
-    protected function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -181,7 +238,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $list[$key] = $item;
     }
     
-    protected function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -195,18 +252,18 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $list[$key] = $item;
     }
 
-    protected function addIcon($icon, $color, $title = '')
+    private function addIcon($icon, $color, $title = '')
     {
         return "<i class='icon $icon' style='color: $color;'></i> ".$title;
     }
     
-    protected function getList()
+    private function getList($id_mp_stock_import = 0)
     {
         $submit = 'submitFilter';
         $current_page_field = $submit.$this->table_name;
         $date_start = '';
         $date_end = '';
-        if (Tools::isSubmit($submit)) {
+        if (Tools::isSubmit($current_page_field)) {
             $current_page = (int)Tools::getValue($current_page_field, 1);
             $pagination = (int)Tools::getValue($this->table_name.'_pagination', 20);
             $this->page = $current_page;
@@ -227,22 +284,31 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $db = Db::getInstance();
         
         $sql = new DbQueryCore();
-        $sql->select('s.id_mp_stock_import')
-            ->select('tm.name as type_movement')
-            ->select('s.filename')
+        $sql->select('distinct s.id_mp_stock')
+            ->select('s.id_product')
+            ->select('s.id_product_attribute')
+            ->select('pa.reference')
+            ->select('s.tax_rate')
+            ->select('s.qty')
             ->select('s.date_movement')
+            ->select('CONCAT(pl.name, \' - \', UPPER(s.name)) as `name`')
+            ->select('s.wholesale_price')
+            ->select('s.price')
             ->select('CONCAT(e.firstname, \' \', e.lastname) as employee')
-            ->from('mp_stock_import', 's')
-            ->leftJoin('mp_stock_type_movement', 'tm', 's.id_type_document=tm.id_mp_stock_type_movement')
+            ->select('si.id_type_document')
+            ->select('si.filename')
+            ->from('mp_stock', 's')
+            ->innerJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import')
+            ->innerJoin('product_attribute', 'pa', 'pa.id_product_attribute=s.id_product_attribute')
+            ->innerJoin('product_lang', 'pl', 'pl.id_product=s.id_product')
             ->leftJoin('employee', 'e', 's.id_employee=e.id_employee')
-            ->where('tm.id_lang='.(int)$this->id_lang)
-            ->where('tm.id_shop='.(int)$this->id_shop)
-            ->orderBy('s.date_movement DESC')
-            ->orderBy('s.filename DESC');
+            ->where('pl.id_lang='.(int)$this->id_lang)
+            ->orderBy('s.id_mp_stock DESC')
+            ->orderBy('s.date_movement DESC');
         
         $sql_count = new DbQueryCore();
         $sql_count->select('count(*)')
-            ->from('mp_stock_import', 's');
+            ->from('mp_stock', 's');
         
         if ($date_start) {
             $date_start .= ' 00:00:00';
@@ -255,6 +321,11 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
             $sql_count->where('date_movement <= \''.pSQL($date_end).'\'');
         }
         
+        if ($id_mp_stock_import) {
+            $sql->where('si.id_mp_stock_import='.(int)$id_mp_stock_import);
+            $sql_count->innerJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import');
+            $sql_count->where('si.id_mp_stock_import='.(int)$id_mp_stock_import);
+        }
         
         $this->listTotal = (int)$db->getValue($sql_count);
         
@@ -267,7 +338,57 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         //print "<pre>".$sql->build()."</pre>";
         
         $result = $db->executeS($sql);
+        
+        if ($result) {
+            foreach ($result as &$row) {
+                $row['image'] = $this->getImageProduct($row['id_product'], true);
+                $row['tax_rate'] = $this->displayTaxRate($row['tax_rate']);
+                $row['qty'] = $this->displayQuantity($row['qty']);
+            }
+        }
+        
         return $result;
+    }
+    
+    public function displayTaxRate($value)
+    {
+        $output =  number_format(
+            $value,
+            2,
+            $this->localeInfo['decimal_point'],
+            $this->localeInfo['thousands_sep']
+        ) . ' %';
+        
+        
+        return $output;
+    }
+    
+    public function displayQuantity($value)
+    {
+        $smarty = Context::getContext()->smarty;
+        if ($value>0) {
+            $smarty->assign(
+                array(
+                    'style' => array(
+                        'color' => '#50BB50',
+                        'font-weight' => 'bold',
+                    ),
+                    'value' => $value,
+                )
+            );
+        } else {
+            $smarty->assign(
+                array(
+                    'style' => array(
+                        'color' => '#BB5050',
+                        'font-weight' => 'bold',
+                    ),
+                    'value' => $value,
+                )
+            );
+        }
+        
+        return $smarty->fetch($this->module->getPath().'views/templates/admin/html_element_span.tpl');
     }
     
     public function addButton($link, $icon, $color = '#797979', $title = '', $newpage = true)
@@ -298,23 +419,67 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         return implode(' ', $parts);
     }
     
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
+    public function getNameProduct($id_product)
     {
-        if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('name')
+            ->from('product_lang')
+            ->where('id_lang='.(int)$this->id_lang)
+            ->where('id_product='.(int)$id_product);
+        return $db->getvalue($sql);
+    }
+    
+    public function getProductNameCombination($id_product, $id_product_attribute)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $id_lang = Context::getContext()->language->id;
+        $sql->select('id_attribute')
+            ->from('product_attribute_combination')
+            ->where('id_product_attribute = ' . (int)$id_product_attribute);
+        $name = $this->getNameProduct($id_product);
+        $attributes = $db->executeS($sql);
+        foreach($attributes as $attribute) {
+            $attr = new AttributeCore($attribute['id_attribute']);
+            $name .= ' ' . $attr->name[(int)$id_lang];
         }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
+        
+        return $name;
+    }
+    
+    public function getImageProduct($id_product, $addImageTag = false)
+    {
+        $id_shop = (int)Context::getContext()->shop->id;
+        $shop = new ShopCore($id_shop);
+        if ((int)$id_product == 0) {
+            PrestaShopLoggerCore::addLog('Invalid id product.');
+            return $shop->getBaseURL(true) . 'img/404.gif';
+        }
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('id_image')
+            ->from('image')
+            ->where('id_product='.(int)$id_product)
+            ->where('cover IS NOT NULL');
+        //PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
+        $id_image = (int)$db->getValue($sql);
+        if ((int)$id_image==0) {
+            return $shop->getBaseURL(true) . 'img/404.gif';
+        }
+        $image = new ImageCore($id_image);
+        $image_path = $shop->getBaseURL(true) . 'img/p/'. $image->getExistingImgPath() . '-small.jpg';
+        
+        if ($addImageTag) {
+            $image = array(
+                'source' => $image_path,
+                'width' => '48px',
+            );
+            $smarty = Context::getContext()->smarty;
+            $smarty->assign('image', $image);
+            return $smarty->fetch($this->module->getPath().'views/templates/admin/html_element_img.tpl');
+        } else {
+            return $image_path;
+        }
     }
 }

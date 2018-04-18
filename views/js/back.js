@@ -23,7 +23,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 **/
 $(document).ready(function(){
-    $('#input')
+    $('#mp_stock_form').validate();
 });
 function importXML()
 {

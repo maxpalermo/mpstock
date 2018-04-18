@@ -174,10 +174,54 @@ class AdminMpStockController extends ModuleAdminController
         parent::initContent();
     }
     
+    protected function ajaxProcessGetErrorsReport()
+    {
+        $folder = $this->module->getPath().'report';
+        $filename = $this->getLastFileName($folder);
+        if (!$filename || basename($filename) == 'index.php') {
+            $filename = 'No_errors.txt';
+            $filesize = 11;
+        } else {
+            $filesize = filesize($filename);
+            $filename = basename($filename);
+        }
+        
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename='.$filename);
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . $filesize);
+        
+        if ($filename == 'No_errors.txt') {
+            print $this->l('No errors.');
+            exit();
+        } else {
+            readfile($filename);
+            exit();
+        }
+    }
+    
     protected function processImportXML()
     {
         $importXML = new MpStockAdminImportXML($this->module, $this);
         $result = $importXML->import();
+    }
+    
+    protected function getLastFileName($folder)
+    {
+        $latest_ctime = 0;
+        $latest_filename = '';    
+        $d = dir($folder);
+        while (false !== ($entry = $d->read())) {
+            $filepath = "{$folder}/{$entry}";
+            //Check whether the entry is a file etc.:
+            if(is_file($filepath) && filectime($filepath) > $latest_ctime) {
+                $latest_ctime = filectime($filepath);
+                $latest_filename = $entry;
+            }//end if is file etc.
+        }//end while going over files in excel_uploads dir.
+        return $latest_filename;
     }
     
     private function initForm()

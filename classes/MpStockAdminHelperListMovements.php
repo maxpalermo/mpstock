@@ -77,26 +77,26 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $this->show_toolbar = true;
         $this->toolbar_btn = array(
             'plus' => array(
-                'desc' => $this->l('Add new movement'),
+                'desc' => $this->module->l('Add new movement', get_class($this)),
                 'href' => $this->link->getAdminLink($this->className).'&addMovement',
             ),
             'upload' => array(
-                'desc' => $this->l('Import from XML'),
+                'desc' => $this->module->l('Import from XML', get_class($this)),
                 'href' => 'javascript:importXML();',
             ),
             'download' => array(
-                'desc' => $this->l('Export to XML'),
+                'desc' => $this->module->l('Export to XML', get_class($this)),
                 'href' => 'javascript:exportXML();',
             ),
             'back' => array(
-                'desc' => $this->l('Back to documents'),
+                'desc' => $this->module->l('Back to documents', get_class($this)),
                 'href' => $this->link->getAdminLink($this->className),
             ),
         );
         $this->shopLinkType='';
         $this->simple_header = false;
         $this->token = Tools::getAdminTokenLite($this->className);
-        $this->title = $this->l('Movements found');
+        $this->title = $this->module->l('Movements found', get_class($this));
         $this->table = 'mp_stock';
         
         $list = $this->getList($id_mp_stock_import);
@@ -105,82 +105,82 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         return $this->generateList($list, $fields_display);
     }
     
-    protected function getFields()
+    private function getFields()
     {
         $list = array();
         $this->addText(
             $list,
-            $this->l('Id'),
+            $this->module->l('Id', get_class($this)),
             'id_mp_stock',
             48,
             'text-right'
         );
         $this->addHtml(
             $list,
-            $this->l('Image'),
+            $this->module->l('Image', get_class($this)),
             'image',
             48,
             'text-center'
         );
         $this->addText(
             $list,
-            $this->l('Type movement'),
+            $this->module->l('Type movement', get_class($this)),
             'movement',
             'auto',
             'text-left'
         );
         $this->addText(
             $list,
-            $this->l('Filename'),
+            $this->module->l('Filename', get_class($this)),
             'filename',
             'auto',
             'text-left'
         );
         $this->addText(
             $list,
-            $this->l('Reference'),
+            $this->module->l('Reference', get_class($this)),
             'reference',
             'auto',
             'text-left'
         );
         $this->addText(
             $list,
-            $this->l('Name'),
+            $this->module->l('Name', get_class($this)),
             'name',
             'auto',
             'text-left'
         );
         $this->addPrice(
             $list,
-            $this->l('Wholesale Price'),
+            $this->module->l('Wholesale Price', get_class($this)),
             'wholesale_price',
             'auto',
             'text-right'
         );
         $this->addPrice(
             $list,
-            $this->l('Price'),
+            $this->module->l('Price', get_class($this)),
             'price',
             'auto',
             'text-right'
         );
         $this->addHtml(
             $list,
-            $this->l('Tax rate'),
+            $this->module->l('Tax rate', get_class($this)),
             'tax_rate',
             'auto',
             'text-right'
         );
         $this->addHtml(
             $list,
-            $this->l('Qty'),
+            $this->module->l('Qty', get_class($this)),
             'qty',
             48,
             'text-right'
         );
         $this->addDate(
             $list,
-            $this->l('Date movement'),
+            $this->module->l('Date movement', get_class($this)),
             'date_movement',
             'auto',
             'text-center',
@@ -188,7 +188,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         );
         $this->addText(
             $list,
-            $this->l('Employee'),
+            $this->module->l('Employee', get_class($this)),
             'employee',
             'auto',
             'text-left'
@@ -197,7 +197,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         return $list;
     }
     
-    protected function addText(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addText(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -210,7 +210,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $list[$key] = $item;
     }
     
-    protected function addDate(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addDate(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -223,7 +223,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $list[$key] = $item;
     }
     
-    protected function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -236,7 +236,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $list[$key] = $item;
     }
     
-    protected function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -250,18 +250,18 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $list[$key] = $item;
     }
 
-    protected function addIcon($icon, $color, $title = '')
+    private function addIcon($icon, $color, $title = '')
     {
         return "<i class='icon $icon' style='color: $color;'></i> ".$title;
     }
     
-    protected function getList($id_mp_stock_import = 0)
+    private function getList($id_mp_stock_import = 0)
     {
         $submit = 'submitFilter';
         $current_page_field = $submit.$this->table_name;
         $date_start = '';
         $date_end = '';
-        if (Tools::isSubmit($submit)) {
+        if (Tools::isSubmit($current_page_field)) {
             $current_page = (int)Tools::getValue($current_page_field, 1);
             $pagination = (int)Tools::getValue($this->table_name.'_pagination', 20);
             $this->page = $current_page;
@@ -282,16 +282,14 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $db = Db::getInstance();
         
         $sql = new DbQueryCore();
-        $sql->select('s.id_mp_stock')
-            ->select("'mp_stock' as `tablename`")
+        $sql->select('distinct s.id_mp_stock')
             ->select('s.id_product')
             ->select('s.id_product_attribute')
             ->select('pa.reference')
-            ->select('s.price')
             ->select('s.tax_rate')
             ->select('s.qty')
             ->select('s.date_movement')
-            ->select('s.name')
+            ->select('CONCAT(pl.name, \' - \', UPPER(s.name)) as `name`')
             ->select('s.wholesale_price')
             ->select('s.price')
             ->select('CONCAT(e.firstname, \' \', e.lastname) as employee')
@@ -300,9 +298,11 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             ->from('mp_stock', 's')
             ->innerJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import')
             ->innerJoin('product_attribute', 'pa', 'pa.id_product_attribute=s.id_product_attribute')
+            ->innerJoin('product_lang', 'pl', 'pl.id_product=s.id_product')
             ->leftJoin('employee', 'e', 's.id_employee=e.id_employee')
-            ->orderBy('s.date_movement DESC')
-            ->orderBy('s.id_mp_stock_import DESC');
+            ->where('pl.id_lang='.(int)$this->id_lang)
+            ->orderBy('s.id_mp_stock DESC')
+            ->orderBy('s.date_movement DESC');
         
         $sql_count = new DbQueryCore();
         $sql_count->select('count(*)')
@@ -460,7 +460,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             ->from('image')
             ->where('id_product='.(int)$id_product)
             ->where('cover IS NOT NULL');
-        PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
+        //PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
         $id_image = (int)$db->getValue($sql);
         if ((int)$id_image==0) {
             return $shop->getBaseURL(true) . 'img/404.gif';
@@ -479,25 +479,5 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         } else {
             return $image_path;
         }
-    }
-    
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
-    {
-        if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
-        }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
 }

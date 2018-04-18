@@ -122,7 +122,7 @@ Class MpStockAdminImportXML
         return true;
     }
     
-    protected function insertRows()
+    private function insertRows()
     {
         foreach ($this->rows as $row) {
             $stock = new MpStockObjectModel();
@@ -159,7 +159,7 @@ Class MpStockAdminImportXML
         }
     }
     
-    protected function addToReportError($stock, $code, $message)
+    private function addToReportError($stock, $code, $message)
     {
         $this->importErrors[] = array(
             'stock' => $stock,
@@ -168,7 +168,7 @@ Class MpStockAdminImportXML
         );
     }
     
-    protected function parseRows(SimpleXMLElement $rows)
+    private function parseRows(SimpleXMLElement $rows)
     {
         /** Prepare array insertion **/
         $output = array();
@@ -198,7 +198,7 @@ Class MpStockAdminImportXML
         return true;
     }
     
-    protected function getExtraInfo($ean13, $reference)
+    private function getExtraInfo($ean13, $reference)
     {
         $product_attribute = $this->getProductAttribute($ean13, $reference);
         if (!$product_attribute) {
@@ -214,7 +214,7 @@ Class MpStockAdminImportXML
         );
     }
     
-    protected function getProductCombinationName($id_product_attribute)
+    private function getProductCombinationName($id_product_attribute)
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();
@@ -251,7 +251,7 @@ Class MpStockAdminImportXML
         return implode($separator, $str);
     }
     
-    protected function getTaxRateFromIdProduct($id_product)
+    private function getTaxRateFromIdProduct($id_product)
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();
@@ -264,7 +264,7 @@ Class MpStockAdminImportXML
     }
 
 
-    protected function getProductAttribute($ean13, $reference)
+    private function getProductAttribute($ean13, $reference)
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();
@@ -281,7 +281,7 @@ Class MpStockAdminImportXML
         return $row;
     }
     
-    protected function insertMpStockImport($filename, $type_movement, $date_movement, $sign)
+    private function insertMpStockImport($filename, $type_movement, $date_movement, $sign)
     {
         /** create object **/
         $this->mpStockImport = new MpStockImportObjectModel();
@@ -316,7 +316,7 @@ Class MpStockAdminImportXML
      * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
      * @return string The translation if available, or the english default text.
      */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
+    private function l($string, $class = null, $addslashes = false, $htmlentities = true)
     {
         if ($class === null || $class == 'AdminTab') {
             $class = substr(get_class($this), 0, -10);

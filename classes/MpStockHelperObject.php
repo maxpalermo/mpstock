@@ -443,7 +443,7 @@ Class MpStockListHelperObject
             ->from('image')
             ->where('id_product='.(int)$id_product)
             ->where('cover IS NOT NULL');
-        PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
+        //PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
         $id_image = (int)$db->getValue($sql);
         if ((int)$id_image==0) {
             return $shop->getBaseURL(true) . 'img/404.gif';
