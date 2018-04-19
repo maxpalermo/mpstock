@@ -32,6 +32,8 @@ require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminImportXML.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperForm.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListDocuments.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListMovements.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperFormAddMovement.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListAddMovement.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockImportObjectModel.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockObjectModel.php';
 
@@ -128,7 +130,9 @@ class AdminMpStockController extends ModuleAdminController
         }
         /** Add movement **/
         if (Tools::isSubmit('addMovement')) {
-            $form_content = $this->initForm() . $this->initScript();
+            $form = new MpStockAdminHelperFormAddMovement($this->module);
+            $form_content = $form->display();
+            $list_content = '';
         }
         
         $this->content = $form_content.$list_content;
@@ -174,7 +178,123 @@ class AdminMpStockController extends ModuleAdminController
         parent::initContent();
     }
     
-    protected function ajaxProcessGetErrorsReport()
+    public function ajaxProcessDelMovement()
+    {
+        $record = Tools::getValue('record');
+        
+        print Tools::jsonEncode(
+            array(
+                'result' => true,
+                'message' => $this->module->l('Operation done.', get_class($this)),
+                'record' => $record,
+            )
+        );
+        exit();
+    }
+    
+    public function ajaxProcessAddMovement()
+    {
+        $record = Tools::getValue('record');
+        $stock = new MpStockObjectModel($record['id']);
+        $stock->date_movement = date('Y-m-d H:i:s');
+        $stock->date_add = $stock->date_movement;
+        $stock->id_employee = $this->id_employee;
+        $stock->id_mp_stock_type_movement = $record['movement'];
+        $stock->id_product_attribute = $record['id_product_attribute'];
+        $stock->price = $stock->cur2float($record['price']);
+        $stock->wholesale_price = $stock->cur2float($record['wholesale_price']);
+        $stock->qty = $record['qty'];
+        $stock->tax_rate = $stock->perc2float($record['tax_rate']);
+        $stock->id_mp_stock_import = 0;
+        $stock->name = $record['name'];
+        $stock->reference = $record['reference'];
+        $stock->ean13 = $record['ean13'];
+        /** Validate record **/
+        if (!$stock->validate()) {
+            print Tools::jsonEncode(
+                array(
+                    'result' => false,
+                    'message' => $this->module->l('Error validating record', get_class($this)),
+                    'class' => $stock,
+                )
+            );
+            exit();
+        }
+        /** Save record **/
+        $result = $stock->save();
+        /** Failed saving **/
+        if (!$result) {
+            print Tools::jsonEncode(
+                array(
+                    'result' => (int)$result,
+                    'message' => sprintf(
+                        $this->module->l('Error inserting record: %s'),
+                        $stock->errorMessage
+                    ),
+                    'class' => $stock,
+                )
+            );
+            exit();
+        }
+        /** Success **/
+        print Tools::jsonEncode(
+            array(
+                'result' => true,
+                'id' => $stock->id,
+                'message' => $this->module->l('Operation done.', get_class($this)),
+                'record' => $record,
+            )
+        );
+        exit();
+    }
+    
+    public function ajaxProcessAutocompleteProduct()
+    {
+        $term = Tools::getValue('term', '');
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('distinct p.id_product')
+            ->select('p.reference')
+            ->select('pl.name')
+            ->from('product', 'p')
+            ->innerJoin('product_lang', 'pl', 'pl.id_product=p.id_product')
+            ->where('pl.id_lang='.(int)$this->id_lang)
+            ->where('p.reference like \'%'.pSQL($term).'%\' OR pl.name like \'%'.pSQL($term).'%\'')
+            ->orderBy('pl.name')
+            ->orderBy('p.reference');
+        $result = $db->executeS($sql);
+        if ($result) {
+            $output = array(
+                'item' => array()
+            );
+            foreach ($result as $row) {
+                $output[] = array(
+                    'id' => (int)$row['id_product'],
+                    'value' => $row['reference'].' - '.$row['name'],
+                );
+            }
+        } else {
+            $output = array(
+                'id' => 0,
+                'value' => $this->l('Nothing found.'),
+            );
+        }
+        print Tools::jsonEncode($output);
+        exit();
+    }
+    
+    public function ajaxProcessShowCombinationsForm()
+    {
+        $list = new MpStockAdminHelperListAddMovement($this->module);
+        $content = array(
+            'result' => true,
+            'form' => $list->display(),
+        );
+        print Tools::jsonEncode($content);
+        exit();
+    }
+    
+    public function ajaxProcessGetErrorsReport()
     {
         $folder = $this->module->getPath().'report';
         $filename = $this->getLastFileName($folder);
@@ -202,13 +322,13 @@ class AdminMpStockController extends ModuleAdminController
         }
     }
     
-    protected function processImportXML()
+    private function processImportXML()
     {
         $importXML = new MpStockAdminImportXML($this->module, $this);
         $result = $importXML->import();
     }
     
-    protected function getLastFileName($folder)
+    private function getLastFileName($folder)
     {
         $latest_ctime = 0;
         $latest_filename = '';    
@@ -398,7 +518,8 @@ class AdminMpStockController extends ModuleAdminController
             $this->addJqueryUI('ui.autocomplete');
             $this->addJqueryUI('ui.datepicker');
             $this->addJqueryPlugin('growl');
-            $this->addJS($this->module->getPath().'views/js/back.js');
+            $this->addJS($this->module->getPath().'views/js/AdminMpStockAutocomplete.js');
+            $this->addJS($this->module->getPath().'views/js/AdminMpStockAddMovement.js');
         }
     }
     

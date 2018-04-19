@@ -296,7 +296,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             ->select('si.id_type_document')
             ->select('si.filename')
             ->from('mp_stock', 's')
-            ->innerJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import')
+            ->leftJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import')
             ->innerJoin('product_attribute', 'pa', 'pa.id_product_attribute=s.id_product_attribute')
             ->innerJoin('product_lang', 'pl', 'pl.id_product=s.id_product')
             ->leftJoin('employee', 'e', 's.id_employee=e.id_employee')

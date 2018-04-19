@@ -173,6 +173,57 @@ Class MpStockObjectModel extends ObjectModelCore
         }
     }
     
+    public function validate()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('p.id_product')
+            ->select('pl.name')
+            ->from('product', 'p')
+            ->innerJoin('product_lang', 'pl', 'pl.id_product=p.id_product')
+            ->innerJoin('product_attribute', 'pa', 'pa.id_product=p.id_product')
+            ->where('id_lang='.(int)$this->id_lang)
+            ->where('pa.id_product_attribute='.(int)$this->id_product_attribute);
+        $row = $db->getRow($sql);
+        if (!$row) {
+            return false;
+        } else {
+            $this->id_product = $row['id_product'];
+        }
+        $sql_mov = new DbQueryCore();
+        $sql_mov->select('*')
+            ->from('mp_stock_type_movement')
+            ->where('id_mp_stock_type_movement='.(int)$this->id_mp_stock_type_movement);
+        $row_mov = $db->getRow($sql_mov);
+        if (!$row_mov) {
+            return false;
+        }
+        $this->sign = $row_mov['sign'];
+        $this->id_mp_stock_exchange = $row_mov['exchange'];
+        return true;
+    }
+    
+    public function cur2float($value)
+    {
+        $sign = Context::getContext()->currency->sign;
+        $curr = trim(str_replace($sign, '', $value));
+        return (float)$this->locale2float($curr);
+    }
+    
+    public function perc2float($value)
+    {
+        $sign = '%';
+        $numb = trim(str_replace($sign, '', $value));
+        return (float)$this->locale2float($numb);
+    }
+    
+    public function locale2float($value)
+    {
+        $iso_code = Context::getContext()->language->iso_code;
+        $fmt = new NumberFormatter($iso_code, NumberFormatter::DECIMAL );
+        return $fmt->parse($value);
+    }
+    
     /**
      * Non-static method which uses AdminController::translate()
      *
@@ -556,7 +607,7 @@ Class MpStockObjectModel extends ObjectModelCore
         $qty = $this->getQuantity($this->id);
         $result = parent::update($null_values);
         if ($result) {
-            $id_stock_available = $this->getIdStockvailable();
+            $id_stock_available = $this->getIdStockAvailable();
             self::updateStock($id_stock_available, $this->qty - $qty);
         }
         return $result;
