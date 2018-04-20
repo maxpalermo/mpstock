@@ -1,5 +1,6 @@
-{*
-* 2007-2018 PrestaShop
+<?php
+/**
+* 2007-2013 PrestaShop
 *
 * NOTICE OF LICENSE
 *
@@ -17,14 +18,16 @@
 * versions in the future. If you wish to customize PrestaShop for your
 * needs please refer to http://www.prestashop.com for more information.
 *
-*  @author    Massimiliano Palermo <info@mpsoft.it>
-*  @copyright 2007-2018 Digital Solutions®
+*  @author    PrestaShop SA <contact@prestashop.com>
+*  @copyright 2007-2013 PrestaShop SA
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
-*}
-<select name="{$name}" {if $id}id="{$id}"{/if} class="select {if $chosen}chosen{/if}" {if $multiple}multiple{/if}>
-    <option value='0'>{$select_first}</option>
-    {foreach $options.query as $option}
-        <option value='{$option[$options.key]}'>{$option[$options.value]}</option>
-    {/foreach}
-</select>
+*/
+
+header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+header('Last-Modified: '.gmdate('D, d M Y H:i:s').' GMT');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Location: ../');
+exit;

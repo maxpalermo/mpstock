@@ -83,7 +83,7 @@ class AdminMpStockController extends ModuleAdminController
     
     public function addConfirmation($message)
     {
-        $this->confirmations[] = $this->displayConfirmation($message);
+        $this->confirmations[] = $message;
     }
     
     public function initContent()
@@ -109,7 +109,7 @@ class AdminMpStockController extends ModuleAdminController
             $list = new MpStockAdminHelperListMovements($this->module);
             $list_content = $list->display((int)Tools::getValue('id_mp_stock_import'));
         } else {
-            /** Show deafult list **/
+            /** Show default list **/
             $list = new MpStockAdminHelperListDocuments($this->module);
             $list_content = $list->display();
             $form = new MpStockAdminHelperForm($this->module);
@@ -134,8 +134,8 @@ class AdminMpStockController extends ModuleAdminController
             $form_content = $form->display();
             $list_content = '';
         }
-        
-        $this->content = $form_content.$list_content;
+        $messages = $this->getMessages();
+        $this->content = $messages.$form_content.$list_content;
         
         parent::initContent();
         return;
@@ -176,6 +176,21 @@ class AdminMpStockController extends ModuleAdminController
         $this->content = $helperList->display();
         
         parent::initContent();
+    }
+    
+    private function getMessages()
+    {
+        $output = array();
+        if ($this->errors) {
+            array_merge($output, $this->errors);
+        }
+        if ($this->warnings) {
+            array_merge($output, $this->warnings);
+        }
+        if ($this->confirmations) {
+            array_merge($output, $this->confirmations);
+        }
+        return implode('<br>', $output);
     }
     
     public function ajaxProcessDelMovement()
@@ -302,8 +317,7 @@ class AdminMpStockController extends ModuleAdminController
             $filename = 'No_errors.txt';
             $filesize = 11;
         } else {
-            $filesize = filesize($filename);
-            $filename = basename($filename);
+            $filesize = filesize($folder.'/'.$filename);
         }
         
         header('Content-Type: application/octet-stream');
@@ -317,7 +331,8 @@ class AdminMpStockController extends ModuleAdminController
             print $this->l('No errors.');
             exit();
         } else {
-            readfile($filename);
+            print "read filename:".Tools::substr($filename,0,Tools::strlen($filename)-4).PHP_EOL;
+            readfile($folder.'/'.$filename);
             exit();
         }
     }

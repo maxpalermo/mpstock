@@ -124,14 +124,17 @@ Class MpStockAdminHelperForm extends HelperFormCore
                         'icon' => 'process-icon-duplicate',
                         'href' => $current_index.'&show_movements',
                     ),
-                    'get_report' => array(
-                        'title' => $this->module->l('Get errors report', get_class($this)),
-                        'icon' => 'process-icon-flag',
-                        'href' => $current_index.'&ajax=true&action=getErrorsReport',
-                    ),
                 ),
             )
         );
+        
+        if (Context::getContext()->controller->errors) {
+            $fields_form['form']['buttons']['get_report'] = array(
+                'title' => $this->module->l('Get errors report', get_class($this)),
+                'icon' => 'process-icon-flag',
+                'href' => $current_index.'&ajax=true&action=getErrorsReport',
+            );
+        }
         
         return (array($fields_form));
     }

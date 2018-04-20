@@ -70,6 +70,7 @@ Class MpStockMovementObjectModel extends ObjectModelCore
     public $name;
     public $sign;
     public $exchange;
+    public $record_exists;
     
     public function __construct($id = null, $id_lang = null, $id_shop = null) {
         if (!$id_lang) {
@@ -79,6 +80,12 @@ Class MpStockMovementObjectModel extends ObjectModelCore
             $this->id_shop = (int)ContextCore::getContext()->shop->id;
         }
         parent::__construct($id, $id_lang, $id_shop);
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('count(*)')
+            ->from('mp_stock_type_movement')
+            ->where('id_mp_stock_type_movement='.(int)$this->id);
+        $this->record_exists = (bool)$db->getValue($sql);
     }
     
     public function getListMovements()

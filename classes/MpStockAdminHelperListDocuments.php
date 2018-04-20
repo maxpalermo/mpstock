@@ -228,7 +228,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         
         $sql = new DbQueryCore();
         $sql->select('s.id_mp_stock_import')
-            ->select('tm.name as type_movement')
+            ->select('tm.name as movement')
             ->select('s.filename')
             ->select('s.date_movement')
             ->select('CONCAT(e.firstname, \' \', e.lastname) as employee')

@@ -90,8 +90,39 @@ Class MpStockAdminImportXML
         $date_movement = $date = (string)$xml->movement_date;
         /** Get type movement **/
         $type_movement = (int)((string)$xml->movement_type);
+        /** Get movement **/
+        $movement = new MpStockMovementObjectModel($type_movement);
+        /** Check type movement **/
+        if (!$movement->record_exists) {
+            $this->importErrors[] = sprintf(
+                $this->module->l('Invalid document type: %d', get_class($this)),
+                $type_movement
+            );
+            $filename = $this->adminController->module->getPath()
+                .'report/report_'
+                .$filename
+                .'.txt';
+            $file = fopen(
+                $filename,
+                'w'
+            );
+            if ($file) {
+                foreach ($this->importErrors as $error) {
+                    fwrite($file, print_r($error,1));
+                }
+            }
+            fclose($file);
+            chmod($filename, 0777);
+            Context::getContext()->controller->addError(
+                sprintf(
+                    $this->module->l('Invalid document type: %d'),
+                    $type_movement
+                )
+            );
+            return true;
+        }
         /** Get sign **/
-        $sign = (string)$xml->movement_type=='load'?1:-1;
+        $sign = (string)$movement->sign;
         /** Insert file name in archive **/
         $this->insertMpStockImport($filename, $type_movement, $date_movement, $sign);
         if ($this->mpStockImport->id) {
@@ -105,8 +136,8 @@ Class MpStockAdminImportXML
         if ($this->importErrors) {
             $filename = $this->adminController->module->getPath()
                 .'report/report_'
-                .$this->mpStockImport->filename
-                .'txt';
+                .$filename
+                .'.txt';
             $file = fopen(
                 $filename,
                 'w'
@@ -119,6 +150,12 @@ Class MpStockAdminImportXML
             fclose($file);
             chmod($filename, 0777);
         }
+        Context::getContext()->controller->addConfirmation(
+            sprintf(
+                $this->module->l('File %s imported successfully'),
+                $file_upload['name']
+            )
+        );
         return true;
     }
     
