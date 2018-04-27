@@ -90,6 +90,7 @@ Class MpStockProductExtraHelperForm extends HelperFormCore
             'input_select_combination' => Tools::getValue('input_select_combination', 0),
             'input_date_start' => Tools::getValue('input_date_start', ''),
             'input_date_end' => Tools::getValue('input_date_end', ''),
+            'key_tab' => 'ModuleMpstock',
         );
     }
     
@@ -102,6 +103,10 @@ Class MpStockProductExtraHelperForm extends HelperFormCore
                     'icon' => 'icon-database',
                 ),
                 'input' => array(
+                    array(
+                        'type' => 'hidden',
+                        'name' => 'key_tab',
+                    ),
                     array(
                         'type' => 'switch',
                         'label' => $this->module->l('Search in orders', get_class($this)),

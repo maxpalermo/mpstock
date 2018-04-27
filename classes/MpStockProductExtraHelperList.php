@@ -29,6 +29,8 @@
  * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
  */
 
+require_once dirname(__FILE__).'/MpStockObjectModel.php';
+
 Class MpStockProductExtraHelperList extends HelperListCore
 {
     public $context;
@@ -40,8 +42,11 @@ Class MpStockProductExtraHelperList extends HelperListCore
     protected $className = 'AdminMpStock';
     protected $localeInfo;
     protected $table_name = 'mp_stock';
+    protected $current_pagination = 20;
+    protected $current_page = 0;
+    protected $id_product=0;
     
-    public function __construct($module)
+    public function __construct($module, $pagination = 20, $page = 0)
     {
         $this->module = $module;
         $this->context = Context::getContext();
@@ -61,15 +66,18 @@ Class MpStockProductExtraHelperList extends HelperListCore
                 'thousands_sep' => ','
             );
         }
+        $this->current_pagination = $pagination;
+        $this->current_page = $page;
     }
     
     public function display($id_mp_stock_import = 0)
     {
+        $this->id_product = (int)Tools::getValue('id_product', 0);
         $this->bootstrap = true;
         $this->actions = array('edit');
         $this->currentIndex = $this->context->link->getAdminLink('AdminProducts', false)
             .'&key_tab=ModuleMpstock'
-            .'&id_product='.Tools::getValue('id_product', 0)
+            .'&id_product='.$this->id_product
             .'&updateproduct'
             .'&show_movements';
         $this->identifier = 'id_mp_stock';
@@ -78,21 +86,9 @@ Class MpStockProductExtraHelperList extends HelperListCore
         $this->_default_pagination = Tools::getValue('configuration_pagination', 20);
         $this->show_toolbar = true;
         $this->toolbar_btn = array(
-            'plus' => array(
-                'desc' => $this->module->l('Add new movement', get_class($this)),
-                'href' => $this->link->getAdminLink($this->className).'&addMovement',
-            ),
-            'upload' => array(
-                'desc' => $this->module->l('Import from XML', get_class($this)),
-                'href' => 'javascript:importXML();',
-            ),
-            'download' => array(
-                'desc' => $this->module->l('Export to XML', get_class($this)),
-                'href' => 'javascript:exportXML();',
-            ),
             'back' => array(
-                'desc' => $this->module->l('Back to documents', get_class($this)),
-                'href' => $this->link->getAdminLink($this->className),
+                'desc' => $this->module->l('Back to products', get_class($this)),
+                'href' => 'javascript:void(0)'
             ),
         );
         $this->shopLinkType='';
@@ -101,10 +97,15 @@ Class MpStockProductExtraHelperList extends HelperListCore
         $this->title = $this->module->l('Movements found', get_class($this));
         $this->table = 'mp_stock';
         
-        $list = $this->getList($id_mp_stock_import);
+        $list = $this->getList($this->id_product);
         $fields_display = $this->getFields();
         
-        return $this->generateList($list, $fields_display);
+        return $this->generateList($list, $fields_display).$this->displayScript();
+    }
+    
+    private function displayScript()
+    {
+        return $this->module->smarty->fetch($this->module->getPath().'views/templates/front/form.tpl');
     }
     
     private function getFields()
@@ -183,15 +184,15 @@ Class MpStockProductExtraHelperList extends HelperListCore
         $this->addDate(
             $list,
             $this->module->l('Date movement', get_class($this)),
-            'date_movement',
+            'date_add',
             'auto',
             'text-center',
             true
         );
         $this->addText(
             $list,
-            $this->module->l('Employee', get_class($this)),
-            'employee',
+            $this->module->l('Customer', get_class($this)),
+            'customer',
             'auto',
             'text-left'
         );
@@ -257,97 +258,215 @@ Class MpStockProductExtraHelperList extends HelperListCore
         return "<i class='icon $icon' style='color: $color;'></i> ".$title;
     }
     
-    private function getList($id_mp_stock_import = 0)
+    private function getList($id_product = 0)
     {
         $submit = 'submitFilter';
         $current_page_field = $submit.$this->table_name;
         $date_start = '';
         $date_end = '';
-        if (Tools::isSubmit($current_page_field)) {
-            $current_page = (int)Tools::getValue($current_page_field, 1);
-            $pagination = (int)Tools::getValue($this->table_name.'_pagination', 20);
-            $this->page = $current_page;
-            $this->_default_pagination = $pagination;
-            $filterDate = $this->table_name.'Filter'.'_date_movement';
-            $dates = Tools::getValue($filterDate, array());
-            if (isset($dates[0])) {
-                $date_start = $dates[0];
-            }
-            if (isset($dates[1])) {
-                $date_end = $dates[1];
-            }
-        } else {
-            $date_start = '';
-            $date_end = '';
+        $search_in_orders = (int)ConfigurationCore::get('MP_STOCK_SEARCH_IN_ORDERS');
+        $search_in_slips = (int)ConfigurationCore::get('MP_STOCK_SEARCH_IN_SLIPS');
+        $search_in_movements = (int)ConfigurationCore::get('MP_STOCK_SEARCH_IN_MOVEMENTS');
+        $this->page = $this->current_page;
+        $this->_default_pagination = $this->current_pagination;
+        $filterDate = $this->table_name.'Filter'.'_date_movement';
+        $dates = Tools::getValue($filterDate, array());
+        $record_count = 0;
+        $sqls = array();
+        if (isset($dates[0])) {
+            $date_start = $dates[0] . ' 00:00:00';
+        }
+        if (isset($dates[1])) {
+            $date_end = $dates[1] . ' 23:59:59';
         }
         
         $db = Db::getInstance();
         
-        $sql = new DbQueryCore();
-        $sql->select('distinct s.id_mp_stock')
-            ->select('s.id_product')
-            ->select('s.id_product_attribute')
-            ->select('pa.reference')
-            ->select('s.tax_rate')
-            ->select('s.qty')
-            ->select('s.date_movement')
-            ->select('CONCAT(pl.name, \' - \', UPPER(s.name)) as `name`')
-            ->select('s.wholesale_price')
-            ->select('s.price')
-            ->select('CONCAT(e.firstname, \' \', e.lastname) as employee')
-            ->select('si.id_type_document')
-            ->select('si.filename')
-            ->from('mp_stock', 's')
-            ->innerJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import')
-            ->innerJoin('product_attribute', 'pa', 'pa.id_product_attribute=s.id_product_attribute')
-            ->innerJoin('product_lang', 'pl', 'pl.id_product=s.id_product')
-            ->leftJoin('employee', 'e', 's.id_employee=e.id_employee')
-            ->where('pl.id_lang='.(int)$this->id_lang)
-            ->orderBy('s.id_mp_stock DESC')
-            ->orderBy('s.date_movement DESC');
-        
-        $sql_count = new DbQueryCore();
-        $sql_count->select('count(*)')
-            ->from('mp_stock', 's');
-        
-        if ($date_start) {
-            $date_start .= ' 00:00:00';
-            $sql->where('s.date_movement >= \''.pSQL($date_start).'\'');
-            $sql_count->where('date_movement >= \''.pSQL($date_start).'\'');
+        /** SEARCH IN ORDERS **/
+        if ($search_in_orders) {
+            $sql_count = new DbQueryCore();
+            $sql_count->select('count(*)')
+                ->from('order_detail', 'od')
+                ->innerJoin('orders', 'o', 'o.id_order=od.id_order')
+                ->where('o.id_shop='.(int)$this->module->getIdShop())
+                ->where('od.product_id='.(int)$this->id_product);
+            $sql = new DbQueryCore();
+            $sql->select('od.id_order_detail as id')
+                ->select('\'orders\' as tablename' )
+                ->select('od.product_id as id_product')
+                ->select('od.product_attribute_id as id_product_attribute')
+                ->select('od.product_quantity as qty')
+                ->select('od.product_ean13 as ean13')
+                ->select('od.product_reference as reference')
+                ->select('od.unit_price_tax_incl as price')
+                ->select('od.original_wholesale_price as wholesale_price')
+                ->select('o.id_customer')
+                ->select('o.date_add')
+                ->from('order_detail', 'od')
+                ->innerJoin('orders', 'o', 'o.id_order=od.id_order')
+                ->where('o.id_shop='.(int)$this->module->getIdShop())
+                ->where('od.product_id='.(int)$this->id_product);
+            if ($date_start) {
+                $sql_count->where('o.date_add >= \''.pSQL($date_start).'\'');
+                $sql->where('o.date_add >= \''.pSQL($date_start).'\'');
+            }
+            if ($date_end) {
+                $sql_count->where('o.date_add <= \''.pSQL($date_end).'\'');
+                $sql->where('o.date_add >= \''.pSQL($date_start).'\'');
+            }
+            $record_count += (int)$db->getValue($sql_count);
+            $sqls[] = $sql->build();
         }
-        if ($date_end) {
-            $date_end .= ' 23:59:59';
-            $sql->where('s.date_movement <= \''.pSQL($date_end).'\'');
-            $sql_count->where('date_movement <= \''.pSQL($date_end).'\'');
+        /** SEARCH IN SLIPS **/
+        if ($search_in_slips) {
+            $sql_count = new DbQueryCore();
+            $sql_count->select('count(*)')
+                ->from('order_slip_detail', 'osd')
+                ->innerJoin('order_detail', 'od', 'od.id_order_detail=osd.id_order_detail')
+                ->innerJoin('orders', 'o', 'o.id_order=od.id_order')
+                ->where('o.id_shop='.(int)$this->module->getIdShop())
+                ->where('od.product_id='.(int)$this->id_product);
+            $sql = new DbQueryCore();
+            $sql->select('od.id_order_detail as id')
+                ->select('\'slips\' as tablename' )
+                ->select('od.product_id as id_product')
+                ->select('od.product_attribute_id as id_product_attribute')
+                ->select('osd.product_quantity as qty')
+                ->select('\'\' as ean13')
+                ->select('\'\' as reference')
+                ->select('osd.unit_price_tax_incl as price')
+                ->select('\'0\' as wholesale_price')
+                ->select('o.id_customer')
+                ->select('o.delivery_date as date_add')
+                ->from('order_slip_detail', 'osd')
+                ->innerJoin('order_detail', 'od', 'od.id_order_detail=osd.id_order_detail')
+                ->innerJoin('orders', 'o', 'o.id_order=od.id_order')
+                ->where('o.id_shop='.(int)$this->module->getIdShop())
+                ->where('od.product_id='.(int)$this->id_product);
+            if ($date_start) {
+                $sql_count->where('o.delivery_date >= \''.pSQL($date_start).'\'');
+                $sql->where('o.delivery_date >= \''.pSQL($date_start).'\'');
+            }
+            if ($date_end) {
+                $sql_count->where('o.delivery_date <= \''.pSQL($date_end).'\'');
+                $sql->where('o.delivery_date >= \''.pSQL($date_start).'\'');
+            }
+            $record_count += (int)$db->getValue($sql_count);
+            $sqls[] = $sql->build();
+        }
+        /** SEARCH IN MOVEMENTS **/
+        if ($search_in_movements) {
+            $sql_count = new DbQueryCore();
+            $sql_count->select('count(*)')
+                ->from('mp_stock', 'st')
+                ->where('st.id_shop='.(int)$this->module->getIdShop())
+                ->where('st.id_product='.(int)$this->id_product);
+            $sql = new DbQueryCore();
+            $sql->select('st.id_mp_stock as id')
+                ->select('\'movements\' as tablename')
+                ->select('st.id_product')
+                ->select('st.id_product_attribute')
+                ->select('st.qty')
+                ->select('\'\' as ean13')
+                ->select('\'\' as reference')
+                ->select('st.price')
+                ->select('st.wholesale_price')
+                ->select('st.id_employee id_customer')
+                ->select('date_add')
+                ->from('mp_stock', 'st')
+                ->where('st.id_shop='.(int)$this->module->getIdShop())
+                ->where('st.id_product='.(int)$this->id_product);
+            if ($date_start) {
+                $sql_count->where('o.delivery_date >= \''.pSQL($date_start).'\'');
+                $sql->where('o.delivery_date >= \''.pSQL($date_start).'\'');
+            }
+            if ($date_end) {
+                $sql_count->where('o.delivery_date <= \''.pSQL($date_end).'\'');
+                $sql->where('o.delivery_date >= \''.pSQL($date_start).'\'');
+            }
+            $record_count += (int)$db->getValue($sql_count);
+            $sqls[] = $sql->build();
         }
         
-        if ($id_mp_stock_import) {
-            $sql->where('si.id_mp_stock_import='.(int)$id_mp_stock_import);
-            $sql_count->innerJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import');
-            $sql_count->where('si.id_mp_stock_import='.(int)$id_mp_stock_import);
-        }
-        
-        $this->listTotal = (int)$db->getValue($sql_count);
+        $this->listTotal = (int)$record_count;
+        $query = implode(' union ', $sqls);
+        $query .= 'order by date_add DESC'
+            . ' limit ' .(int)$this->current_pagination 
+            . ' offset ' . (int)$this->current_pagination*(int)$this->current_page;
+        PrestaShopLoggerCore::addLog('QUERY MOVEMENT: '.$query);
         
         //Save query in cookies
-        Context::getContext()->cookie->export_query = $sql->build();
+        Context::getContext()->cookie->export_query = $query;
         
-        //Set Pagination
-        $sql->limit($this->_default_pagination, ($this->page-1)*$this->_default_pagination);
-        
-        //print "<pre>".$sql->build()."</pre>";
-        
-        $result = $db->executeS($sql);
+        $result = $db->executeS($query);
         
         if ($result) {
             foreach ($result as &$row) {
                 $row['image'] = $this->getImageProduct($row['id_product'], true);
-                $row['tax_rate'] = $this->displayTaxRate($row['tax_rate']);
+                $row['tax_rate'] = $this->getTaxRateFromIdProduct((int)$row['id_product']);
                 $row['qty'] = $this->displayQuantity($row['qty']);
+                $row['price'] = Tools::displayPrice($row['price']);
+                $row['wholesale_price'] = Tools::displayPrice($row['wholesale_price']);
+                $row['customer'] = $this->getCustomer($row['tablename'], $row['id_customer']);
+                if ($row['tablename']=='movements') {
+                    $row['movement'] = $this->getMovementType($row['id']);
+                    $row['reference'] = $this->getReference($row['id']);
+                    $row['name'] = $this->getName($row['id']);
+                    $row['customer'] = $this->getCustomerName($row['id_customer'], true);
+                } else {
+                    $row['movement'] = Tools::strtoupper($row['tablename']);
+                    $row['customer'] = $this->getCustomerName($row['id_customer'], false);
+                }
             }
         }
         
         return $result;
+    }
+    
+    public function getCustomerName($id_customer, $isEmplpoyee)
+    {
+        if ($isEmplpoyee) {
+            $class = new EmployeeCore($id_customer);
+        } else {
+            $class = new CustomerCore($id_customer);
+        }
+        
+        return $this->ucFirst($class->firstname . ' ' . $class->lastname);
+    }
+    
+    public function getName($id_movement)
+    {
+        $movement = new MpStockObjectModel($id_movement);
+        return $movement->name;
+    }
+    
+    public function getReference($id_movement)
+    {
+        $movement = new MpStockObjectModel($id_movement);
+        return $movement->reference;
+    }
+    
+    public function getMovementType($id_movement)
+    {
+        $movement = new MpStockObjectModel($id_movement);
+        return $movement->movement;
+    }
+    
+    public function getTaxRateFromIdProduct($id_product)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('t.rate')
+            ->from('tax', 't')
+            ->innerJoin('tax_rule', 'tr', 't.id_tax=tr.id_tax')
+            ->innerJoin('product', 'p', 'p.id_tax_rules_group=tr.id_tax_rules_group')
+            ->where('p.id_product='.(int)$id_product);
+        return (float)$db->getValue($sql);
+    }
+    
+    public function getCustomer($tablename, $id_customer)
+    {
+        return 'customer --';
     }
     
     public function displayTaxRate($value)

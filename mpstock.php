@@ -246,6 +246,24 @@ class MpStock extends Module
     }
     
     /**
+     * Get the Id of current language
+     * @return int id language
+     */
+    public function getIdLang()
+    {
+        return (int)$this->id_lang;
+    }
+    
+    /**
+     * Get the Id of current shop
+     * @return int id shop
+     */
+    public function getIdShop()
+    {
+        return (int)$this->id_shop;
+    }
+    
+    /**
      * Get The URL path of this module
      * @return string The URL of this module
      */
@@ -554,19 +572,36 @@ class MpStock extends Module
         /** Check pagination **/
         
         if (Tools::isSubmit('submitFiltermp_stock')) {
+            $pagination = (int)Tools::getValue('mp_stock_pagination', 0);
+            $page = (int)Tools::getValue('submitFiltermp_stock');
+            $list = new MpStockProductExtraHelperList($this, $pagination, $page);
+            return $list->display();
             
         }
         /** Check if has been submitted find button **/
-        if (Tools::isSubmit('submitFormFindMovements') || Tools::isSubmit('show_movements')) {           
+        if (Tools::isSubmit('submitFormFindMovements')) {           
+            /** Save configuration **/
+            ConfigurationCore::updateValue(
+                'MP_STOCK_SEARCH_IN_ORDERS',
+                (int)Tools::getValue('input_switch_search_in_orders', 0)
+            );
+            ConfigurationCore::updateValue(
+                'MP_STOCK_SEARCH_IN_SLIPS',
+                (int)Tools::getValue('input_switch_search_in_slips', 0)
+            );
+            ConfigurationCore::updateValue(
+                'MP_STOCK_SEARCH_IN_MOVEMENTS',
+                (int)Tools::getValue('input_switch_search_in_movements', 0)
+            );
             /** Get list movements **/
-            $this->smarty->assign('key_tab', 'ModuleMpstock');
+            $this->smarty->assign('key_tab', 'ModuleMpstock', 0);
             $list = new MpStockProductExtraHelperList($this);
-            return $list->display().$this->smarty->fetch($this->getPath().'views/templates/admin/form_validate.tpl');
+            return $list->display();
         }
         
         /** Display default form **/
         $form = new MpStockProductExtraHelperForm($this);
-        return $form->display().$this->smarty->fetch($this->getPath().'views/templates/admin/form_validate.tpl');
+        return $form->display();
     }
     
     public function hookDisplayBackOfficeHeader()
