@@ -26,9 +26,9 @@
 
 Class MpStockObjectModel extends ObjectModelCore
 {
-    /** @var bool if set, movement has another product */
+    /** @var int contains id of import file */
     public $id_mp_stock_import;
-    /** @var bool if set, movement has another product */
+    /** @var int containd id of main movement */
     public $id_mp_stock_exchange;
     /** @var int product id */
     public $id_product;
@@ -173,37 +173,6 @@ Class MpStockObjectModel extends ObjectModelCore
         }
     }
 
-    public function validate()
-    {
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('p.id_product')
-            ->select('pl.name')
-            ->from('product', 'p')
-            ->innerJoin('product_lang', 'pl', 'pl.id_product=p.id_product')
-            ->innerJoin('product_attribute', 'pa', 'pa.id_product=p.id_product')
-            ->where('id_lang='.(int)$this->id_lang)
-            ->where('pa.id_product_attribute='.(int)$this->id_product_attribute);
-        $row = $db->getRow($sql);
-        if (!$row) {
-            return false;
-        } else {
-            $this->id_product = $row['id_product'];
-        }
-        $sql_mov = new DbQueryCore();
-        $sql_mov->select('*')
-            ->from('mp_stock_type_movement')
-            ->where('id_mp_stock_type_movement='.(int)$this->id_mp_stock_type_movement);
-        $row_mov = $db->getRow($sql_mov);
-        if (!$row_mov) {
-            return false;
-        }
-        $this->sign = $row_mov['sign'];
-        $this->id_mp_stock_exchange = $row_mov['exchange'];
-        $this->qty = (int)$this->qty * (int)$this->sign;
-        return true;
-    }
-
     public function cur2float($value)
     {
         $sign = Context::getContext()->currency->sign;
@@ -295,7 +264,21 @@ Class MpStockObjectModel extends ObjectModelCore
             ->where('id_product='.(int)$id_product);
         return $db->getvalue($sql);
     }
-
+    
+    public function getIdProductFromIdProductAttribute($id_product_attribute=0)
+    {
+        if ($id_product_attribute==0) {
+            $id_product_attribute = $this->id_product_attribute;
+        }
+        $db=Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('id_product')
+            ->from('product_attribute')
+            ->where('id_product_attribute='.(int)$id_product_attribute);
+        $id_product = (int)$db->getValue($sql);
+        return $id_product;
+    }
+    
     public function getName()
     {
         $db = Db::getInstance();
@@ -447,7 +430,17 @@ Class MpStockObjectModel extends ObjectModelCore
         $result = $db->getRow($sql);
         return $result;
     }
-
+    
+    public function getSign()
+    {
+        $db=Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('sign')
+            ->from('mp_stock_type_movement')
+            ->where('id_mp_stock_type_movement='.(int)$this->id_mp_stock_type_movement);
+        return (int)$db->getValue($sql);
+    }
+    
     public static function getMovementById($id_movement, $exchange = false)
     {
         $db = Db::getInstance();
@@ -618,8 +611,7 @@ Class MpStockObjectModel extends ObjectModelCore
             $class = new MpStockObjectModel($value);
             return $class;
         } else {
-            $class = new MpStockObjectModel();
-            return $class;
+            return false;
         }
     }
 
@@ -641,63 +633,59 @@ Class MpStockObjectModel extends ObjectModelCore
         $db = Db::getInstance();
         $sql = new DbQueryCore();
         $sql->select('qty')
+            ->select('sign')
             ->from('mp_stock')
             ->where('id_mp_stock='.(int)$id_movement);
-        $id_mp_stock = (int)$db->getValue($sql);
-        return $id_mp_stock;
+        $row = $db->getRow($sql);
+        $qty = abs((int)$row['qty']) * (int)$row['sign'];
+        return $qty;
     }
     
     public function save($null_values = false, $auto_date = true) {
-        if ($this->id) {
-            return $this->update($null_values);
-        } else {
-            return $this->add($auto_date, $null_values);
-        }
-    }
-    
-    public function add($auto_date = true, $null_values = false) {
         if (empty($this->date_add)) {
             $this->date_add = date('Y-m-d H:i:s');
         }
         if (empty($this->id_mp_stock_import)) {
             $this->id_mp_stock_import = 0;
         }
+        $this->qty = abs($this->qty) * $this->sign;
+        
+        PrestaShopLoggerCore::addLog('save=>sign: '. $this->sign);
+        
         try {
-            $result = parent::add($auto_date, $null_values);
+            if ($this->id) {
+                $result =  $this->update($null_values);
+            } else {
+                $result =  $this->add($auto_date, $null_values);
+            }
+            
+            if ($result) {
+                $id_stock_available = $this->getIdStockAvailable();
+                self::updateStock($id_stock_available, $this->qty);
+            } else {
+                $result = false;
+                PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
+                $this->errorMessage = "Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage();
+            }
         } catch (Exception $ex) {
             $result = false;
-            PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
-            $this->errorMessage = "Exception on add(): " . $ex->getCode() . '-' . $ex->getMessage();
+            PrestaShopLoggerCore::addLog("Exception on save(): " . $ex->getCode() . '-' . $ex->getMessage());
+            $this->errorMessage = "Exception on save(): " . $ex->getCode() . '-' . $ex->getMessage();
         }
-
-        if ($result) {
-            $id_stock_available = $this->getIdStockAvailable();
-            self::updateStock($id_stock_available, $this->qty);
-        }
-        return $result;
+        return $result;  
     }
-
-    public function update($null_values = false) {
-        if (empty($this->date_add)) {
-            $this->date_add = date('Y-m-d H:i:s');
-        }
-        if (empty($this->id_mp_stock_import)) {
-            $this->id_mp_stock_import = 0;
-        }
-        $qty = $this->getQuantity($this->id);
-        $result = parent::update($null_values);
-        if ($result) {
-            $id_stock_available = $this->getIdStockAvailable();
-            self::updateStock($id_stock_available, $this->qty - $qty);
-        }
-        return $result;
-    }
-
+    
     public function delete() {
         $result = parent::delete();
         if ($result) {
             $id_stock_available = $this->getIdStockAvailable();
             self::updateStock($id_stock_available, -$this->qty);
+            
+            $class = $this->getExchangeMovement();
+            if ($class) {
+                $class->delete();
+            }
+            
         }
         return $result;
     }

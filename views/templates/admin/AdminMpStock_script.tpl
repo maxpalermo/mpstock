@@ -126,6 +126,18 @@
     
     $(document).ready(function(){
         /**
+         * 
+         * format input element
+         */
+        $('.input-float').on('blur', function(){
+            var number = extractNumbers(this.value);
+            this.value = Number(number).toFixed(2);
+        });
+        $('.input-integer').on('blur', function(){
+            var number = extractNumbers(this.value);
+            this.value = Number(number).toFixed(0);
+        });
+        /**
          * Looking for a product for transformation
          */
         $("#input_id_product_transform").autocomplete({

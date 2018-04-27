@@ -28,8 +28,47 @@
     var currency_char = $('#mp_stock_currency_char').val();
 
     $(document).ready(function(){
-        bindControls();
+        $('.input-float').on('blur', function(){
+            var number = extractNumbers(this.value);
+            this.value = Number(number).toFixed(2);
+        });
+        $('.input-integer').on('blur', function(){
+            var number = extractNumbers(this.value);
+            this.value = Number(number).toFixed(0);
+        });
     });
+    
+    /**
+     * Extract digits and decimal separator from a string
+     * @param { type } str String to be parsed
+     * @returns { Number } Parsed number
+     */
+    function extractNumbers(str)
+    {
+        var result = [];
+        for (var i=0; i<str.length; i++) {
+            var char = String(str).substr(i,1);
+            if (/^[0-9,.]*$/.test(char)) {
+                result.push(char);
+            }
+        }
+        var number = result.join("");
+        
+        if (isNaN(number)) {
+            var str = String(number).replace(".", "");
+            var str2 = String(str).replace(",", ".");
+        } else {
+            return Number(number);
+        }
+        
+        if (isNaN(str2)) {
+            return 0;
+        } else {
+            return Number(str2)
+        }
+        
+        return number;
+    }
     function saveCombination(button)
     {
         var row = $(button).closest('tr');

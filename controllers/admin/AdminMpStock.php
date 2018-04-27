@@ -237,33 +237,26 @@ class AdminMpStockController extends ModuleAdminController
     {
         $record = Tools::getValue('record');
         $stock = new MpStockObjectModel($record['id']);
-        $stock->date_movement = date('Y-m-d H:i:s');
-        $stock->date_add = $stock->date_movement;
-        $stock->id_employee = $this->id_employee;
-        $stock->id_mp_stock_type_movement = $record['movement'];
-        $stock->id_product_attribute = $record['id_product_attribute'];
-        $stock->price = $stock->cur2float($record['price']);
-        $stock->wholesale_price = $stock->cur2float($record['wholesale_price']);
-        $stock->qty = abs((int)$record['qty']);
-        $stock->tax_rate = $stock->perc2float($record['tax_rate']);
         $stock->id_mp_stock_import = 0;
+        $stock->id_mp_stock_exchange = 0;
+        $stock->id_shop = $this->id_shop;
+        $stock->id_product_attribute = (int)$record['id_product_attribute'];
+        $stock->id_product = $stock->getIdProductFromIdProductAttribute();
         $stock->name = $record['name'];
-        $stock->reference = $record['reference'];
-        $stock->ean13 = $record['ean13'];
-        /** Validate record **/
-        if (!$stock->validate()) {
-            print Tools::jsonEncode(
-                array(
-                    'result' => false,
-                    'message' => $this->module->l('Error validating record', get_class($this)),
-                    'class' => $stock,
-                )
-            );
-            exit();
-        }
+        $stock->id_mp_stock_type_movement = $record['movement'];
+        $stock->qty = (int)$record['qty'];
+        $stock->price = $record['price'];
+        $stock->wholesale_price = $record['wholesale_price'];
+        $stock->tax_rate = $record['tax_rate'];
+        $stock->date_movement = date('Y-m-d H:i:s');
+        $stock->sign = $stock->getSign();
+        $stock->date_add = $stock->date_movement;
+        $stock->id_employee = (int)$this->id_employee;
+        
         /** Check if is an exchange movement **/
         $exchange =(int)$stock->isExchangeMovement();
         /** Save record **/
+        PrestaShopLoggerCore::addLog('before save=>sign: '. $stock->sign);
         $result = $stock->save();
         /** Failed saving **/
         if (!$result) {
@@ -287,7 +280,7 @@ class AdminMpStockController extends ModuleAdminController
                 'result' => true,
                 'id' => $stock->id,
                 'exchange' => (int)$exchange,
-                'form' => $this->getExchangeForm($stock->id),
+                'form' => $this->getExchangeForm($stock->id, $stock->id_mp_stock_type_movement),
                 'stock' => (int)$current_stock,
                 'message' => $this->module->l('Operation done.', get_class($this)),
                 'record' => $record,
@@ -298,12 +291,16 @@ class AdminMpStockController extends ModuleAdminController
     
     public function ajaxProcessAddMovementExchange()
     {
-        $id = (int)Tools::getValue('id', 0);
+        $id_mp_stock_exchange = (int)Tools::getValue('id', 0);
+        $id_mp_stock_type_movement = (int)Tools::getValue('id_mp_stock_type_movement', 0);
         $id_product_attribute = (int)Tools::getvalue('id_product_attribute', 0);
         $id_product_attribute_name = Tools::getvalue('id_product_attribute_name', '--');
         $qty = abs((int)Tools::getValue('qty', 0));
+        $wholesale_price = (float)Tools::getValue('wholesale_price', 0);
+        $price = (float)Tools::getvalue('price', 0);
+        $tax_rate = (float)Tools::getValue('tax_rate', 0);
         
-        if ($id == 0 || $id_product_attribute == 0 || $qty == 0) {
+        if ($id_mp_stock_exchange == 0 || $id_product_attribute == 0 || $qty == 0) {
             print Tools::jsonEncode(
                 array(
                     'result' => false,
@@ -313,49 +310,35 @@ class AdminMpStockController extends ModuleAdminController
             exit();
         }
         
-        $stock_movement = new MpStockObjectModel($id);
-        $stock = $stock_movement->getExchangeMovement();
-        if (!$stock->id) {
-            $stock->date_movement = $stock_movement->date_movement;
-            $stock->date_add = $stock->date_movement;
-            $stock->id_employee = $this->id_employee;
-            $stock->id_mp_stock_type_movement = $stock_movement->id_mp_stock_type_movement;
-            $stock->id_product_attribute = $id_product_attribute;
-            $stock->price = $stock_movement->price;
-            $stock->wholesale_price = $stock_movement->wholesale_price;
+        $id = MpStockObjectModel::getIdMovementByExchangeId($id_mp_stock_exchange);
+        
+        if ($id) {
+            $stock = new MpStockObjectModel($id);
             $stock->qty = $qty;
-            $stock->tax_rate = $stock_movement->tax_rate;
-            $stock->id_mp_stock_import = 0;
-            $stock->name = $id_product_attribute_name;
-            $stock->reference = $stock::getReferenceByIdProductAttribute($id_product_attribute);
-            $stock->ean13 = $stock::getEan13ByIdProductAttribute($id_product_attribute);
-            /** Validate record **/
-            if (!$stock->validate()) {
-                print Tools::jsonEncode(
-                    array(
-                        'result' => false,
-                        'message' => $this->module->l('Error validating record', get_class($this)),
-                        'class' => $stock,
-                    )
-                );
-                exit();
-            }
-            $result = $stock->save();
+            $stock->wholesale_price = $wholesale_price;
+            $stock->price = $price;
+            $stock->tax_rate = $tax_rate;
         } else {
-            $stock->qty = $qty;
-            /** Validate record **/
-            if (!$stock->validate()) {
-                print Tools::jsonEncode(
-                    array(
-                        'result' => false,
-                        'message' => $this->module->l('Error validating record', get_class($this)),
-                        'class' => $stock,
-                    )
-                );
-                exit();
-            }
-            $result = $stock->save();
+            $stock = new MpStockObjectModel();
+            $stock->id_mp_stock_import = 0;
+            $stock->id_mp_stock_exchange = $id_mp_stock_exchange;
+            $stock->id_shop = $this->id_shop;
+            $stock->id_product_attribute = (int)$id_product_attribute;
+            $stock->id_product = $stock->getIdProductFromIdProductAttribute();
+            $stock->name = $id_product_attribute_name;
+            $stock->id_mp_stock_type_movement = (int)$id_mp_stock_type_movement;
+            $stock->qty = (int)$qty;
+            $stock->price = $price;
+            $stock->wholesale_price = $wholesale_price;
+            $stock->tax_rate = $tax_rate;
+            $stock->date_movement = date('Y-m-d H:i:s');
+            $stock->sign = (int)$stock->getSign() * -1;
+            $stock->date_add = $stock->date_movement;
+            $stock->id_employee = (int)$this->id_employee;
         }
+        
+        $result = $stock->save();
+        
         /** Failed saving **/
         if (!$result) {
             print Tools::jsonEncode(
@@ -488,10 +471,6 @@ class AdminMpStockController extends ModuleAdminController
     {
         $this->smarty->assign(
             array(
-                'header_form' => $this->module->getPath().'views/templates/admin/AdminMpStockHeader.tpl',
-                'content_form' => $this->module->getPath().'views/templates/admin/AdminMpStockContent.tpl',
-                'footer_form' => $this->module->getPath().'views/templates/admin/AdminMpStockFooter.tpl',
-                'transform_form' => $this->module->getPath().'views/templates/admin/AdminMpStockTransform.tpl',
                 'back_url' => $this->link->getAdminLink($this->className),
                 'tot_badge' => 0,
                 'page' => 0,
@@ -501,7 +480,7 @@ class AdminMpStockController extends ModuleAdminController
             )
         );
 
-        return $this->smarty->fetch($this->module->getPath().'views/templates/admin/AdminMpStock.tpl');
+        return $this->smarty->fetch($this->module->getPath().'views/templates/admin/AdminMpStock_script.tpl');
     }
 
     private function initList()
@@ -661,20 +640,20 @@ class AdminMpStockController extends ModuleAdminController
             $this->addJqueryUI('ui.datepicker');
             $this->addJqueryPlugin('growl');
             $this->addJS($this->module->getPath().'views/js/AdminMpStockAutocomplete.js');
-            $this->addJS($this->module->getPath().'views/js/AdminMpStockAddMovement.js');
+            //$this->addJS($this->module->getPath().'views/js/AdminMpStockAddMovement.js');
             $this->addJS($this->module->getPath().'views/js/jquery-confirm-min.js');
         }
     }
     
-    public function getExchangeForm($id=0)
+    public function getExchangeForm($id=0, $type_movement = 0)
     {
-        if ($id) {
-            $this->smarty->assign($this->getSmartyExchange($id));
+        if ($id && $type_movement) {
+            $this->smarty->assign($this->getSmartyExchange($id, $type_movement));
         }
         return $this->smarty->fetch($this->module->getPath().'views/templates/admin/exchange_form.tpl');
     }
     
-    public function getSmartyExchange($id)
+    public function getSmartyExchange($id, $type_movement)
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();
@@ -684,18 +663,24 @@ class AdminMpStockController extends ModuleAdminController
         $row = $db->getRow($sql);
         if ($row) {
             $product = new ProductCore($row["id_product"]);
-            return array(
-                'id_mp_stock' => $id,
+             $assign =  array(
+                'id_mp_stock_exchange' => $id,
+                'id_mp_stock_type_movement' => $type_movement,
                 'product_name' => $product->name[$this->id_lang],
                 'product_option' => array(
                     'value' => $row['id_product_attribute'],
                     'name' => $row['name'],
                 ),
                 'product_qty' => $row['qty'],
+                'product_wholesale_price' => $row['wholesale_price'],
+                'product_price' => $row['price'],
+                'product_tax_rate' => $row['tax_rate']
             );
+            return $assign;
         } else {
             return array(
-                'id_mp_stock' => $id,
+                'id_mp_stock_exchange' => $id,
+                'id_mp_stock_type_movement' => $type_movement,
             );
         }
     }

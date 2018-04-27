@@ -351,7 +351,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
             array(
                 'name' => 'input_text_qty[]',
                 'id' => '',
-                'class' => 'input text-right fixed-width-sm input-quantity',
+                'class' => 'input text-right fixed-width-sm input-integer',
                 'value' => $value,
             )
         );
@@ -365,7 +365,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
             array(
                 'name' => $name,
                 'id' => '',
-                'class' => 'input text-right fixed-width-sm input-price',
+                'class' => 'input text-right fixed-width-sm input-float',
                 'value' => Tools::displayPrice($value),
             )
         );
@@ -380,7 +380,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
             array(
                 'name' => $name,
                 'id' => '',
-                'class' => 'input text-right fixed-width-sm input-percent',
+                'class' => 'input text-right fixed-width-sm input-float',
                 'value' => $percentage
             )
         );

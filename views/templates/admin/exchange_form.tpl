@@ -24,7 +24,8 @@
 *}
 <form type="post" id='form_exchange'>
     <div class="panel">
-        <input type="hidden" id='hidden_id_mp_stock_exchange' value='{if isset($id_mp_stock)}{$id_mp_stock}{/if}'>
+        <input type="hidden" id='hidden_id_mp_stock_exchange' value='{if isset($id_mp_stock_exchange)}{$id_mp_stock_exchange}{/if}'>
+        <input type="hidden" id='hidden_id_mp_stock_type_movement' value='{if isset($id_mp_stock_type_movement)}{$id_mp_stock_type_movement}{/if}'>
             
         <div class='row'>
             <div class="col-md-6">
@@ -41,18 +42,42 @@
                 <label for="input_select_exchange_combination">{l s='Select a combination' mod='mpstock'}</label>
                 <select id='input_select_exchange_combination' class='select chosen' {if isset($product_name)}disabled{/if}>
                     {if isset($product_option)}
-                        <option value='{$product_option.value}'>{$product_option.text}</option>
+                        <option value='{$product_option.value}'>{$product_option.name}</option>
                     {/if}
                 </select>
             </div>
-            <div class="form-group" class='col-md-2'>
+            <div class='col-md-2'>
                 <label for="input_exchange_product_qty">{l s='Insert quantity' mod='mpstock'}</label>
                 <input type='text' id='input_exchange_product_qty' 
                        value='{if isset($product_qty)}{$product_qty}{else}0{/if}' 
-                       class='input fixed-width-md text-right'>
+                       class='input input-integer text-right'>
             </div>
         </div>
-            
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                
+            </div>
+            <div class='col-md-2'>
+                <label for="input_exchange_product_wholesale_price">{l s='Insert Wholesale price' mod='mpstock'}</label>
+                <input type='text' id='input_exchange_product_wholesale_price' 
+                       value='{if isset($product_wholesale_price)}{$product_wholesale_price|string_format:"%.2f"}{else}0{/if}' 
+                       class='input text-right input-float'>
+            </div>
+            <div class='col-md-2'>
+                <label for="input_exchange_product_price">{l s='Insert Price' mod='mpstock'}</label>
+                <input type='text' id='input_exchange_product_price' 
+                       value='{if isset($product_price)}{$product_price|string_format:"%.2f"}{else}0{/if}' 
+                       class='input text-right input-float'>
+            </div>
+            <div class='col-md-2'>
+                <label for="input_exchange_product_wholesale_tax_rate">{l s='Insert Tax rate' mod='mpstock'}</label>
+                <input type='text' id='input_exchange_product_tax_rate' 
+                       value='{if isset($product_tax_rate)}{$product_tax_rate|string_format:"%.2f"}{else}0{/if}' 
+                       class='input text-right input-float'>
+            </div>
+        </div>
+        <hr>
         <div class='form-group'>    
             <button type='button' class='btn btn-success pull-right' id='btn_save_exchange' style='margin-left: 12px;'>
                 <i class='icon process-icon-save'></i>&nbsp;
@@ -68,10 +93,26 @@
 </form>
 <script type="text/javascript">
     $(document).ready(function(){
+        $('.input-float').on('blur', function(){
+            var number = extractNumbers(this.value);
+            this.value = Number(number).toFixed(2);
+        });
+        $('.input-integer').on('blur', function(){
+            var number = extractNumbers(this.value);
+            this.value = Number(number).toFixed(0);
+        });
         $('#btn_save_exchange').on('click', function(){
             var id_product_attribute = $('#input_select_exchange_combination').val();
             var id_product_attribute_name = '';
-
+            
+            if (isNaN(id_product_attribute) || id_product_attribute === 0) {
+                $.growl.warning({
+                    title: '{l s='Warning' mod='mpstock'}',
+                    message: '{l s='Select a valid product' mod='mpstock'}'
+                });
+                return false;
+            }
+            
             $('#input_select_exchange_combination option').each(function(){
                 if(this.value === id_product_attribute) {
                     id_product_attribute_name = $(this).text();
@@ -89,7 +130,11 @@
                     id: $('#hidden_id_mp_stock_exchange').val(),
                     id_product_attribute: id_product_attribute,
                     id_product_attribute_name: id_product_attribute_name,
-                    qty: $('#input_exchange_product_qty').val()
+                    id_mp_stock_type_movement: $('#hidden_id_mp_stock_type_movement').val(),
+                    qty: $('#input_exchange_product_qty').val(),
+                    wholesale_price: $('#input_exchange_product_wholesale_price').val(),
+                    price: $('#input_exchange_product_price').val(),
+                    tax_rate: $('#input_exchange_product_tax_rate').val()
                 },
                 success: function(data)
                 {
