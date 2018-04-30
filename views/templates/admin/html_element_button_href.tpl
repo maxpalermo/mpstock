@@ -22,6 +22,7 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-{foreach $rows as $row}
-    <option value='{$row.id_product_attribute}'>{$row.name}</option>
-{/foreach}
+<button {if $name}name="{$name}"{/if} type="button" class="btn btn-default" href="{$href}">
+    <i class="icon {$icon}" {if $color}style="color: {$color};"{/if}></i>
+    {if $title}&nbsp;{$title}{/if}
+</button>

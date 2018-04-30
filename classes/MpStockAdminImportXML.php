@@ -277,15 +277,8 @@ Class MpStockAdminImportXML
                 $name[] = Tools::strtolower($row['name']);
             }
         }
-        return self::ucFirstsArray($name);
-    }
-    
-    public static function ucFirstsArray($str, $separator = ' ')
-    {
-        foreach ($str as &$s) {
-            $s = Tools::ucfirst(Tools::strtolower($s));
-        }
-        return implode($separator, $str);
+        $name_str = implode(' ', $name);
+        return MpStockTools::ucFirst($name);
     }
     
     private function getTaxRateFromIdProduct($id_product)

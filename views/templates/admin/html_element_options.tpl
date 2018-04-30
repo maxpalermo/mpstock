@@ -22,5 +22,6 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<i {if $name}name="{$name}"{/if} class="icon {$icon}" {if $color}style="color: {$color};{/if}"></i>
-{if $title}&nbs&nbsp;$title{/if}
+{foreach $rows as $row}
+    <option value='{$row.value}'>{$row.name}</option>
+{/foreach}

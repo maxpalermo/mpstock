@@ -378,8 +378,9 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $result = $db->executeS($sql);
 
         if ($result) {
+            $templatePath = $this->module->getAdminTemplatePath();
             foreach ($result as &$row) {
-                $row['image'] = $this->getImageProduct($row['id_product'], true);
+                $row['image'] = MpStockTools::getImageProduct((int)$row['id_product']);
                 $row['tax_rate'] = $this->displayTaxRate($row['tax_rate']);
                 $row['qty'] = $this->displayQuantity($row['qty']);
                 $row['stock'] = $this->displayQuantity($row['stock']);
@@ -454,16 +455,6 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         return $link;
     }
 
-    public function ucFirst($str)
-    {
-        $str_lower = Tools::strtolower($str);
-        $parts = explode(' ', $str_lower);
-        foreach ($parts as &$part) {
-            $part = Tools::ucfirst($part);
-        }
-        return implode(' ', $parts);
-    }
-
     public function getNameProduct($id_product)
     {
         $db = Db::getInstance();
@@ -491,41 +482,5 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         }
 
         return $name;
-    }
-
-    public function getImageProduct($id_product, $addImageTag = false)
-    {
-        $id_shop = (int)Context::getContext()->shop->id;
-        $shop = new ShopCore($id_shop);
-        if ((int)$id_product == 0) {
-            PrestaShopLoggerCore::addLog('Invalid id product.');
-            return $shop->getBaseURL(true) . 'img/404.gif';
-        }
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('id_image')
-            ->from('image')
-            ->where('id_product='.(int)$id_product)
-            ->where('cover IS NOT NULL');
-        //PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
-        $id_image = (int)$db->getValue($sql);
-        if ((int)$id_image==0) {
-            $image_path = $shop->getBaseURL(true) . 'img/404.gif';
-        } else {
-            $image = new ImageCore($id_image);
-            $image_path = $shop->getBaseURL(true) . 'img/p/'. $image->getExistingImgPath() . '-small.jpg';
-        }
-
-        if ($addImageTag) {
-            $image = array(
-                'source' => $image_path,
-                'width' => '48px',
-            );
-            $smarty = Context::getContext()->smarty;
-            $smarty->assign('image', $image);
-            return $smarty->fetch($this->module->getPath().'views/templates/admin/html_element_img.tpl');
-        } else {
-            return $image_path;
-        }
     }
 }

@@ -22,7 +22,7 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<button type="button" class="btn btn-default" onclick="{$callback}">
+<button {if $name}name="{$name}"{/if} type="button" class="btn btn-default" onclick="{$callback}">
     <i class="{$icon}" {if $color}style="color: {$color};"{/if}></i>
-    {if $name}{$name}{/if}
+    {if $title}{$title}{/if}
 </button>

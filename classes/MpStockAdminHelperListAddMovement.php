@@ -103,12 +103,17 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
     
     public function getOptionsCombination()
     {
-        Context::getContext()->smarty->assign(
-            array(
-                'rows' => $this->getList()
-            )
-        );
-        return Context::getContext()->smarty->fetch($this->module->getPath().'views/templates/admin/options_cmb.tpl');
+        $list = array();
+        $combinations = self::getCombinations($this->id_product);
+        foreach ($combinations as $comb) {
+            $row = array(
+                'value'=> $comb['id_product_attribute'],
+                'name' => Tools::strtoupper($comb['name']),
+            );
+            $list[] = $row;
+        }
+        
+        return MpStockTools::getOptionsCombination($list);
     }
     
     private function bindControls()
@@ -119,91 +124,91 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
     protected function getFields()
     {
         $list = array();
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Id', get_class($this)),
             'id_mp_stock',
             48,
             'text-right'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Attribute', get_class($this)),
             'id_product_attribute',
             48,
             'text-right'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Type movement', get_class($this)),
             'movement',
             'auto',
             'text-left'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Name', get_class($this)),
             'name',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Reference', get_class($this)),
             'reference',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('EAN13', get_class($this)),
             'ean13',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Stock', get_class($this)),
             'stock',
             'auto',
             'text-right'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Qty', get_class($this)),
             'qty',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Wholesale Price', get_class($this)),
             'wholesale_price',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Price', get_class($this)),
             'price',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Tax rate', get_class($this)),
             'tax_rate',
             128,
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Action', get_class($this)),
             'action',
             'auto',
             'text-center'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Status', get_class($this)),
             'status',
@@ -214,7 +219,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         return $list;
     }
 
-    protected function addText(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addText(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -227,7 +232,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         $list[$key] = $item;
     }
 
-    protected function addDate(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addDate(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -240,7 +245,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         $list[$key] = $item;
     }
 
-    protected function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -253,7 +258,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         $list[$key] = $item;
     }
 
-    protected function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
+    private function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
     {
         $item = array(
             'title' => $title,
@@ -267,12 +272,12 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         $list[$key] = $item;
     }
 
-    protected function addIcon($icon, $color, $title = '')
+    private function addIcon($icon, $color, $title = '')
     {
         return "<i class='icon $icon' style='color: $color;'></i> ".$title;
     }
 
-    protected function getList()
+    private function getList()
     {
         $output = array();
         $combinations = self::getCombinations($this->id_product);
@@ -289,9 +294,9 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
                 'wholesale_price' => $this->displayPrice($comb['wholesale_price'], 'wholesale_price[]'),
                 'price' => $this->displayPrice($comb['price'], 'price[]'),
                 'tax_rate' => $this->displayPerc($comb['tax_rate'], 'input_tax_rate[]'),
-                'action' => $this->displayButton('', 'icon icon-save', 'javascript:saveCombination(this);', '#3030AA')
-                    .$this->displayButton('', 'icon icon-times', 'javascript:deleteCombination(this);', '#BB4040'),
-                'status' => $this->displayIcon('icon_status[]', 'icon-edit', '#303090'),
+                'action' => MpStockTools::getHtmlButtonCallBack('', 'icon icon-save', 'javascript:saveCombination(this);', '#3030AA')
+                    .MpStockTools::getHtmlButtonCallBack('', 'icon icon-times', 'javascript:deleteCombination(this);', '#BB4040'),
+                'status' => MpStockTools::getHtmlIcon('icon_status[]', 'icon-edit', '#303090'),
             );
             $output[] = $row;
         }
@@ -385,33 +390,6 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
             )
         );
         $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_text.tpl');
-        return $input;
-    }
-
-    private function displayButton($name, $icon, $callback, $color = '')
-    {
-        $this->smarty->assign(
-            array(
-                'name' => $name,
-                'icon' => $icon,
-                'callback' => $callback,
-                'color' => $color,
-            )
-        );
-        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_button.tpl');
-        return $input;
-    }
-
-    private function displayIcon($name, $icon, $color = '')
-    {
-        $this->smarty->assign(
-            array(
-                'name' => $name,
-                'icon' => $icon,
-                'color' => $color,
-            )
-        );
-        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_icon.tpl');
         return $input;
     }
 
@@ -516,28 +494,17 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
     public function addButton($link, $icon, $color = '#797979', $title = '', $newpage = true)
     {
         if ($newpage) {
-            $newpage = '_blank';
+            $target = '_blank';
         } else {
-            $newpage = '';
+            $target = '_top';
         }
-        $i = $this->addIcon($icon, $color, $title);
-        $link = "<a class='btn btn-default $newpage' href='$link'>".$i."</a>";
-        return $link;
+        
+        return MpStockTools::getHtmlHrefButton('', $icon, $link, $target, $color, $title);
     }
 
     public function addLink($link, $content)
     {
         $link = "<a href='$link'>".$content."</a>";
         return $link;
-    }
-
-    public function ucFirst($str)
-    {
-        $str_lower = Tools::strtolower($str);
-        $parts = explode(' ', $str_lower);
-        foreach ($parts as &$part) {
-            $part = Tools::ucfirst($part);
-        }
-        return implode(' ', $parts);
     }
 }

@@ -429,30 +429,6 @@ Class MpStockListHelperObject
         );
     }
     
-    public static function getImageProduct($id_product)
-    {
-        $id_shop = (int)Context::getContext()->shop->id;
-        $shop = new ShopCore($id_shop);
-        if ((int)$id_product == 0) {
-            PrestaShopLoggerCore::addLog('Invalid id product.');
-            return $shop->getBaseURL(true) . 'img/404.gif';
-        }
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('id_image')
-            ->from('image')
-            ->where('id_product='.(int)$id_product)
-            ->where('cover IS NOT NULL');
-        //PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
-        $id_image = (int)$db->getValue($sql);
-        if ((int)$id_image==0) {
-            return $shop->getBaseURL(true) . 'img/404.gif';
-        }
-        $image = new ImageCore($id_image);
-        $image_path = $shop->getBaseURL(true) . 'img/p/'. $image->getExistingImgPath() . '-small.jpg';
-        return $image_path;
-    }
-    
     public static function getImageProductAttribute($id_product_attribute, $id_product)
     {
         $id_shop = (int)Context::getContext()->shop->id;
@@ -469,7 +445,7 @@ Class MpStockListHelperObject
         $id_image = (int)$db->getValue($sql);
         if ((int)$id_image==0) {
             PrestaShopLoggerCore::addLog('Invaid image attribute. get image product.');
-            return self::getImageProduct($id_product);
+            return MpStockTools::getImageProduct($id_product);
         }
         $image = new ImageCore($id_image);
         $image_path = $shop->getBaseURL(true) . 'img/p/'. $image->getExistingImgPath() . '-small.jpg';

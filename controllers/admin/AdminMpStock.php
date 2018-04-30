@@ -36,6 +36,7 @@ require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperFormAddMovemen
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListAddMovement.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockImportObjectModel.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockObjectModel.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockTools.php';
 
 class AdminMpStockController extends ModuleAdminController
 {
@@ -909,7 +910,7 @@ class AdminMpStockController extends ModuleAdminController
                     $output['reference'] = $this->getReferenceProduct($id_product);
                     $output['employee'] = $this->getEmployeeName($id_employee, $id_stock);
                     $output['name'] = $this->getAttributeProduct($id_product_attribute, $id_product, $id_stock);
-                    $output['image_url'] = $this->img($this->getImageProduct($id_product));
+                    $output['image_url'] = MpTools::getImageProduct($id_product);
                     $output['type'] = $this->getTypemovement($row['id_mp_stock_type_movement']);
                     if ($row['qty']>0) {
                         $output['qty'] = '<i class="icon-arrow-right" style="color: #1fc62d;"></i> <strong>'. abs($row['qty']) . '</strong>';
@@ -952,11 +953,6 @@ class AdminMpStockController extends ModuleAdminController
             }
         }
         return '';
-    }
-
-    public function img($url)
-    {
-        return "<img src='" . $url . "' style='max-width: 48px; max-height: 48px; object-fit: contain;'>";
     }
 
     public function perc($value)

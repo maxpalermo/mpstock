@@ -246,6 +246,15 @@ class MpStock extends Module
     }
     
     /**
+     * Return the Admin Template Path
+     * @return string The admin template path
+     */
+    public function getAdminTemplatePath()
+    {
+        return $this->getPath().'views/templates/admin/';
+    }
+    
+    /**
      * Get the Id of current language
      * @return int id language
      */

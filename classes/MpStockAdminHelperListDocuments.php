@@ -288,16 +288,6 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         return $link;
     }
     
-    public function ucFirst($str)
-    {
-        $str_lower = Tools::strtolower($str);
-        $parts = explode(' ', $str_lower);
-        foreach ($parts as &$part) {
-            $part = Tools::ucfirst($part);
-        }
-        return implode(' ', $parts);
-    }
-    
     /**
      * Non-static method which uses AdminController::translate()
      *
