@@ -61,12 +61,13 @@ Class MpStockAdminHelperListMovements extends HelperListCore
                 'thousands_sep' => ','
             );
         }
+        $this->smarty = Context::getContext()->smarty;
     }
 
     public function display($id_mp_stock_import = 0)
     {
         $this->bootstrap = true;
-        $this->actions = array('edit');
+        $this->actions = array();
         $this->currentIndex = $this->context->link->getAdminLink($this->className, false)
             .'&id_mp_stock_import='.(int)$id_mp_stock_import
             .'&updatemp_stock_import';
@@ -102,9 +103,33 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $list = $this->getList($id_mp_stock_import);
         $fields_display = $this->getFields();
 
-        return $this->generateList($list, $fields_display);
+        return $this->generateList($list, $fields_display).$this->getScript();
     }
-
+    
+    private function getScript()
+    {
+        $this->smarty->assign(
+            array(
+                'url_edit_movement' => $this->link->getAdminLink('AdminMpStock').'&action=edit_movement',
+            )
+        );
+        return $this->smarty->fetch($this->module->getPath().'views/templates/admin/helper_list_movs_script.tpl');
+    }
+    
+    private function displayButton($name, $icon, $callback, $color = '')
+    {
+        $this->smarty->assign(
+            array(
+                'name' => $name,
+                'icon' => $icon,
+                'callback' => $callback,
+                'color' => $color,
+            )
+        );
+        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_button.tpl');
+        return $input;
+    }
+    
     private function getFields()
     {
         $list = array();
@@ -182,7 +207,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             $list,
             $this->module->l('Qty', get_class($this)),
             'qty',
-            48,
+            '48',
             'text-right'
         );
         $this->addDate(
@@ -199,6 +224,13 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             'employee',
             'auto',
             'text-left'
+        );
+        $this->addHtml(
+            $list,
+            $this->module->l('Action', get_class($this)),
+            'action',
+            'auto',
+            'text-center'
         );
 
         return $list;
@@ -351,6 +383,12 @@ Class MpStockAdminHelperListMovements extends HelperListCore
                 $row['tax_rate'] = $this->displayTaxRate($row['tax_rate']);
                 $row['qty'] = $this->displayQuantity($row['qty']);
                 $row['stock'] = $this->displayQuantity($row['stock']);
+                $row['action'] = $this->displayButton(
+                    $this->module->l('Delete', get_class($this)),
+                    'icon icon-times',
+                    'javascript:deleteMovement(this);',
+                    '#BB4040'
+                );
             }
         }
 
@@ -472,10 +510,11 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         //PrestaShopLoggerCore::addLog('sql==>' . $sql->__toString());
         $id_image = (int)$db->getValue($sql);
         if ((int)$id_image==0) {
-            return $shop->getBaseURL(true) . 'img/404.gif';
+            $image_path = $shop->getBaseURL(true) . 'img/404.gif';
+        } else {
+            $image = new ImageCore($id_image);
+            $image_path = $shop->getBaseURL(true) . 'img/p/'. $image->getExistingImgPath() . '-small.jpg';
         }
-        $image = new ImageCore($id_image);
-        $image_path = $shop->getBaseURL(true) . 'img/p/'. $image->getExistingImgPath() . '-small.jpg';
 
         if ($addImageTag) {
             $image = array(

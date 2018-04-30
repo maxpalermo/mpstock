@@ -206,10 +206,11 @@ Class MpStockObjectModel extends ObjectModelCore
     protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
     {
         if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
+            $class = Tools::substr(get_class($this), 0, -10);
+        } elseif (Tools::strtolower(Tools::substr($class, -10)) == 'controller') {
+            /* classname has changed, from AdminXXX to AdminXXXController, 
+             * so we remove 10 characters and we keep same keys */
+            $class = Tools::substr($class, 0, -10);
         }
         return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
@@ -576,7 +577,7 @@ Class MpStockObjectModel extends ObjectModelCore
         return (int)$db->getValue($sql);
     }
 
-    public static function updateStock($id_stock_available, $qty) {
+    public function updateStock($id_stock_available, $qty) {
         $stock = new StockAvailableCore($id_stock_available);
         $stock->quantity = $stock->quantity + $qty;
         try {
@@ -587,12 +588,49 @@ Class MpStockObjectModel extends ObjectModelCore
                 array('quantity'=>(int)$stock->quantity),
                 'id_product_attribute='.(int)$stock->id_product_attribute
             );
+            if ($result) {
+                $currentStock = $this->getTotalStock();
+                $db->update(
+                    'product_attribute',
+                    array(
+                        'quantity' => (int)$stock->quantity,
+                    ),
+                    'id_product_attribute='.(int)$this->id_product_attribute
+                );
+                $db->update(
+                    'product_attribute',
+                    array(
+                        'quantity' => (int)$stock->quantity,
+                    ),
+                    'id_product='.(int)$this->id_product
+                    .' and id_product_attribute=0'
+                );
+                $db->update(
+                    'product',
+                    array(
+                        'quantity' => (int)$currentStock
+                    ),
+                    'id_product='.(int)$this->id_product
+                );
+            }
+            
         } catch (Exception $ex) {
             $result = false;
             PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
             //$this->errorMessage = "Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage();
         }
         return $result;
+    }
+    
+    public function getTotalStock()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('sum(quantity)')
+            ->from('stock_available')
+            ->where('id_product='.(int)$this->id_product)
+            ->where('id_product_attribute!=0');
+        return (int)$db->getValue($sql);
     }
     
     /**
@@ -661,7 +699,7 @@ Class MpStockObjectModel extends ObjectModelCore
             
             if ($result) {
                 $id_stock_available = $this->getIdStockAvailable();
-                self::updateStock($id_stock_available, $this->qty);
+                $this->updateStock($id_stock_available, $this->qty);
             } else {
                 $result = false;
                 PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
@@ -679,7 +717,7 @@ Class MpStockObjectModel extends ObjectModelCore
         $result = parent::delete();
         if ($result) {
             $id_stock_available = $this->getIdStockAvailable();
-            self::updateStock($id_stock_available, -$this->qty);
+            $this->updateStock($id_stock_available, -$this->qty);
             
             $class = $this->getExchangeMovement();
             if ($class) {

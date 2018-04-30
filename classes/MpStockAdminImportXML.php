@@ -180,7 +180,7 @@ Class MpStockAdminImportXML
             $stock->sign = $this->mpStockImport->sign;
             $stock->date_add = date('Y-m-d H:i:s');
             try {
-                $stock->add();
+                $stock->save();
             } catch (Exception $ex) {
                 $this->addToReportError($stock, $ex->getCode(), $ex->getMessage());
                 $this->adminController->addError(

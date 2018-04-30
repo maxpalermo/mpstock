@@ -310,10 +310,11 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
     protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
     {
         if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
+            $class = Tools::substr(get_class($this), 0, -10);
+        } elseif (Tools::strtolower(Tools::substr($class, -10)) == 'controller') {
+            /* classname has changed, from AdminXXX to AdminXXXController, 
+             * so we remove 10 characters and we keep same keys */
+            $class = Tools::substr($class, 0, -10);
         }
         return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }

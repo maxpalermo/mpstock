@@ -193,7 +193,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
             $list,
             $this->module->l('Tax rate', get_class($this)),
             'tax_rate',
-            'auto',
+            128,
             'text-left'
         );
         $this->addHtml(

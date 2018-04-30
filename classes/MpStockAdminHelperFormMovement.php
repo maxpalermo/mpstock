@@ -29,7 +29,7 @@
  * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
  */
 
-Class MpStockAdminHelperFormAddMovement extends HelperFormCore
+Class MpStockAdminHelperFormMovement extends HelperFormCore
 {
     public $context;
     public $values;

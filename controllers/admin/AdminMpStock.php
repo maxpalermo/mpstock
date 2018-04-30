@@ -104,6 +104,12 @@ class AdminMpStockController extends ModuleAdminController
                 $this->addConfirmation($this->l('Import from XML done.'));
             }
         }
+        /** Edit movement **/
+        if (Tools::isSubmit('action') && Tools::getValue('action', '') == 'edit_movement') {
+            $form = new MpStockAdminHelperFormMovement($this->module);
+            $form_content = $form->display((int)Tools::getValue('id_movement'));
+            $list_content = '';
+        }
         /** Get Stock movements **/
         if (Tools::isSubmit('id_mp_stock_import') && Tools::isSubmit('updatemp_stock_import')) {
             $list = new MpStockAdminHelperListMovements($this->module);
@@ -197,6 +203,9 @@ class AdminMpStockController extends ModuleAdminController
     {
         $record = Tools::getValue('record');
         $id = (int)$record['id'];
+        if (Tools::isSubmit('id_movement')) {
+            $id = (int)Tools::getValue('id_movement', 0);
+        }
         if (!$id) {
             print Tools::jsonEncode(
                 array(
@@ -1026,7 +1035,9 @@ class AdminMpStockController extends ModuleAdminController
     {
         /** Check if user is logged **/
         $cookie = new CookieCore('psAdmin');
-
+        /** LOG **/
+        PrestaShopLoggerCore::addLog('Start XML import');
+        /** COOKIE **/
         if (!$cookie->isLoggedBack()) {
             print Tools::jsonEncode(array(
                 array(
@@ -1145,7 +1156,7 @@ class AdminMpStockController extends ModuleAdminController
                 $stock->sign = $sign;
                 $stock->date_add = date('Y-m-d H:i:s');
                 try {
-                    $add = $stock->add();
+                    $add = $stock->save();
                     PrestaShopLoggerCore::addLog('Adding new stock:'.(int)$add);
                 } catch (Exception $ex) {
                     $add = false;
@@ -1528,7 +1539,7 @@ class AdminMpStockController extends ModuleAdminController
         if ($insert) {
             //UPDATE PRESTASHOP STOCK AVAILABLE
             $id_stock_available = (int)MpStockObjectModel::getIdStockAvailable($stock->id_product_attribute);
-            MpStockObjectModel::updateStock($id_stock_available, $stock->qty);
+            $stock->updateStock($id_stock_available, $stock->qty);
             if ($par['input_hidden_transform'] && $id_mp_stock_exchange == 0) {
                 return $this->insertmovement(
                     $stock->id,
