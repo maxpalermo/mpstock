@@ -34,4 +34,7 @@
         class="input"
     {/if}
     value="{$value}"
+    {if $color}
+    style="color: {$color};"
+    {/if}
     >

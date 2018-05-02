@@ -50,17 +50,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $this->id_lang = (int)$this->context->language->id;
         parent::__construct();
         $this->cookie = Context::getContext()->cookie;
-        if (Context::getContext()->language->iso_code == 'it') {
-            $this->localeInfo = array(
-                'decimal_point' => ',',
-                'thousands_sep' => '.'
-            );
-        } else {
-            $this->localeInfo = array(
-                'decimal_point' => '.',
-                'thousands_sep' => ','
-            );
-        }
+        $this->localeInfo = MpStockTools::getLocaleInfo();
         $this->smarty = Context::getContext()->smarty;
     }
 
@@ -116,101 +106,87 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         return $this->smarty->fetch($this->module->getPath().'views/templates/admin/helper_list_movs_script.tpl');
     }
     
-    private function displayButton($name, $icon, $callback, $color = '')
-    {
-        $this->smarty->assign(
-            array(
-                'name' => $name,
-                'icon' => $icon,
-                'callback' => $callback,
-                'color' => $color,
-            )
-        );
-        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_button.tpl');
-        return $input;
-    }
-    
     private function getFields()
     {
         $list = array();
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Id', get_class($this)),
             'id_mp_stock',
             48,
             'text-right'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Image', get_class($this)),
             'image',
             48,
             'text-center'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Type movement', get_class($this)),
             'movement',
             'auto',
             'text-left'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Filename', get_class($this)),
             'filename',
             'auto',
             'text-left'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Reference', get_class($this)),
             'reference',
             'auto',
             'text-left'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Name', get_class($this)),
             'name',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Stock', get_class($this)),
             'stock',
             48,
             'text-right'
         );
-        $this->addPrice(
+        MpStockTools::addPrice(
             $list,
             $this->module->l('Wholesale Price', get_class($this)),
             'wholesale_price',
             'auto',
             'text-right'
         );
-        $this->addPrice(
+        MpStockTools::addPrice(
             $list,
             $this->module->l('Price', get_class($this)),
             'price',
             'auto',
             'text-right'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Tax rate', get_class($this)),
             'tax_rate',
             'auto',
             'text-right'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Qty', get_class($this)),
             'qty',
             '48',
             'text-right'
         );
-        $this->addDate(
+        MpStockTools::addDate(
             $list,
             $this->module->l('Date movement', get_class($this)),
             'date_movement',
@@ -218,14 +194,14 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             'text-center',
             true
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Employee', get_class($this)),
             'employee',
             'auto',
             'text-left'
         );
-        $this->addHtml(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Action', get_class($this)),
             'action',
@@ -234,64 +210,6 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         );
 
         return $list;
-    }
-
-    private function addText(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'text',
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addDate(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'date',
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'price',
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'bool',
-            'float' => true,
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addIcon($icon, $color, $title = '')
-    {
-        return "<i class='icon $icon' style='color: $color;'></i> ".$title;
     }
 
     private function getList($id_mp_stock_import = 0)
@@ -381,106 +299,19 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             $templatePath = $this->module->getAdminTemplatePath();
             foreach ($result as &$row) {
                 $row['image'] = MpStockTools::getImageProduct((int)$row['id_product']);
-                $row['tax_rate'] = $this->displayTaxRate($row['tax_rate']);
-                $row['qty'] = $this->displayQuantity($row['qty']);
-                $row['stock'] = $this->displayQuantity($row['stock']);
-                $row['action'] = $this->displayButton(
-                    $this->module->l('Delete', get_class($this)),
-                    'icon icon-times',
+                $row['tax_rate'] = MpStockTools::displayTaxRate($row['tax_rate']);
+                $row['qty'] = MpStockTools::displayQuantity($row['qty']);
+                $row['stock'] = MpStockTools::displayQuantity($row['stock']);
+                $row['action'] = MpStockTools::getHtmlButtonCallBack(
+                    '',
+                    'icon-times',
                     'javascript:deleteMovement(this);',
-                    '#BB4040'
+                    '#BB4040',
+                    $this->module->l('Delete')
                 );
             }
         }
 
         return $result;
-    }
-
-    public function displayTaxRate($value)
-    {
-        $output =  number_format(
-            $value,
-            2,
-            $this->localeInfo['decimal_point'],
-            $this->localeInfo['thousands_sep']
-        ) . ' %';
-
-
-        return $output;
-    }
-
-    public function displayQuantity($value)
-    {
-        $smarty = Context::getContext()->smarty;
-        if ($value>0) {
-            $smarty->assign(
-                array(
-                    'style' => array(
-                        'color' => '#50BB50',
-                        'font-weight' => 'bold',
-                    ),
-                    'value' => $value,
-                )
-            );
-        } else {
-            $smarty->assign(
-                array(
-                    'style' => array(
-                        'color' => '#BB5050',
-                        'font-weight' => 'bold',
-                    ),
-                    'value' => $value,
-                )
-            );
-        }
-
-        return $smarty->fetch($this->module->getPath().'views/templates/admin/html_element_span.tpl');
-    }
-
-    public function addButton($link, $icon, $color = '#797979', $title = '', $newpage = true)
-    {
-        if ($newpage) {
-            $newpage = '_blank';
-        } else {
-            $newpage = '';
-        }
-        $i = $this->addIcon($icon, $color, $title);
-        $link = "<a class='btn btn-default $newpage' href='$link'>".$i."</a>";
-        return $link;
-    }
-
-    public function addLink($link, $content)
-    {
-        $link = "<a href='$link'>".$content."</a>";
-        return $link;
-    }
-
-    public function getNameProduct($id_product)
-    {
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('name')
-            ->from('product_lang')
-            ->where('id_lang='.(int)$this->id_lang)
-            ->where('id_product='.(int)$id_product);
-        return $db->getvalue($sql);
-    }
-
-    public function getProductNameCombination($id_product, $id_product_attribute)
-    {
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $id_lang = Context::getContext()->language->id;
-        $sql->select('id_attribute')
-            ->from('product_attribute_combination')
-            ->where('id_product_attribute = ' . (int)$id_product_attribute);
-        $name = $this->getNameProduct($id_product);
-        $attributes = $db->executeS($sql);
-        foreach($attributes as $attribute) {
-            $attr = new AttributeCore($attribute['id_attribute']);
-            $name .= ' ' . $attr->name[(int)$id_lang];
-        }
-
-        return $name;
     }
 }

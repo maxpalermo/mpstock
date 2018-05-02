@@ -27,11 +27,11 @@
 if (!defined('_PS_VERSION_')) {
     exit;
 }
-
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockMovementObjectModel.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockHelperObject.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockProductExtraHelperForm.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockProductExtraHelperList.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockTools.php';
 
 class MpStock extends Module
 {
@@ -43,7 +43,6 @@ class MpStock extends Module
     public $link;
     public $smarty;
     protected $messages = array();
-
     public function __construct()
     {
         $this->name = 'mpstock';
@@ -104,7 +103,6 @@ class MpStock extends Module
             $this->registerHook('displayBackOfficeHeader') &&
             $this->installTab('', $this->adminClassName, $this->l('MP Quick Store'));
     }
-
     public function uninstall()
     {
         return parent::uninstall() && 
@@ -114,7 +112,6 @@ class MpStock extends Module
     public function installSQL()
     {
         $sql = array();
-
         $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock_import` (
             `id_mp_stock_import` int(11) NOT NULL AUTO_INCREMENT,
             `id_type_document` int(11) NOT NULL,
@@ -159,7 +156,6 @@ class MpStock extends Module
             `exchange` boolean NOT NULL,
             PRIMARY KEY  (`id_mp_stock_type_movement`)
         ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
-
         $sql[] = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock_list_movements` (
             `id_mp_stock_list_movements` int(11) NOT NULL AUTO_INCREMENT,
             `id_employee_bo` int(11) NOT NULL,
@@ -176,7 +172,6 @@ class MpStock extends Module
             `employee` varchar(255) NULL,
             PRIMARY KEY  (`id_mp_stock_list_movements`)
         ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
-
         foreach ($sql as $query) {
             try {
                 if (Db::getInstance()->execute($query) == false) {
@@ -614,12 +609,12 @@ class MpStock extends Module
     }
     
     public function hookDisplayBackOfficeHeader()
-	{
-		$ctrl = $this->context->controller;
-		if ($ctrl instanceof AdminController && method_exists($ctrl, 'addCss')) {
+  {
+    $ctrl = $this->context->controller;
+    if ($ctrl instanceof AdminController && method_exists($ctrl, 'addCss')) {
             $ctrl->addCss($this->_path . 'views/css/icon-menu.css');
         }
-	}
+  }
     
     public function ajaxProcessFindMovements()
     {

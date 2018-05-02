@@ -102,28 +102,28 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
     protected function getFields()
     {
         $list = array();
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Id', get_class($this)),
             'id_mp_stock_import',
             48,
             'text-right'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Type movement', get_class($this)),
             'movement',
             'auto',
             'text-left'
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Filename', get_class($this)),
             'filename',
             'auto',
             'text-left'
         );
-        $this->addDate(
+        MpStockTools::addDate(
             $list,
             $this->module->l('Date movement', get_class($this)),
             'date_movement',
@@ -131,7 +131,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
             'text-center',
             true
         );
-        $this->addText(
+        MpStockTools::addText(
             $list,
             $this->module->l('Employee', get_class($this)),
             'employee',
@@ -140,64 +140,6 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         );
         
         return $list;
-    }
-    
-    protected function addText(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'text',
-            'search' => $search,
-        );
-        
-        $list[$key] = $item;
-    }
-    
-    protected function addDate(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'date',
-            'search' => $search,
-        );
-        
-        $list[$key] = $item;
-    }
-    
-    protected function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'price',
-            'search' => $search,
-        );
-        
-        $list[$key] = $item;
-    }
-    
-    protected function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'bool',
-            'float' => true,
-            'search' => $search,
-        );
-        
-        $list[$key] = $item;
-    }
-
-    protected function addIcon($icon, $color, $title = '')
-    {
-        return "<i class='icon $icon' style='color: $color;'></i> ".$title;
     }
     
     protected function getList()
@@ -268,44 +210,5 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         
         $result = $db->executeS($sql);
         return $result;
-    }
-    
-    public function addButton($link, $icon, $color = '#797979', $title = '', $newpage = true)
-    {
-        if ($newpage) {
-            $newpage = '_blank';
-        } else {
-            $newpage = '';
-        }
-        $i = $this->addIcon($icon, $color, $title);
-        $link = "<a class='btn btn-default $newpage' href='$link'>".$i."</a>";
-        return $link;
-    }
-    
-    public function addLink($link, $content)
-    {
-        $link = "<a href='$link'>".$content."</a>";
-        return $link;
-    }
-    
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
-    {
-        if ($class === null || $class == 'AdminTab') {
-            $class = Tools::substr(get_class($this), 0, -10);
-        } elseif (Tools::strtolower(Tools::substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, 
-             * so we remove 10 characters and we keep same keys */
-            $class = Tools::substr($class, 0, -10);
-        }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
 }

@@ -40,12 +40,117 @@ Class MpStockTools
     const OBJECT_FIT_NONE = 'none';
     const OBJECT_FIT_SCALE_DOWN = 'scale-down';
     
-    public static function getHtmlButtonCallBack($name, $icon, $callback='javascript:void(0);', $color='', $title='', $templatePath='')
+    /**
+     * Get the default Template Path
+     * @param  string templatePath
+     * @return string templatePath, if empty returns the default path
+     */
+    public static function getDefaultTemplatePath($templatePath)
     {
         /** Get Template path if not set **/
         if (empty($templatePath)) {
-            $templatePath = _PS_MODULE_DIR_.'mpstock/views/templates/admin/';
+            return _PS_MODULE_DIR_.'mpstock/views/templates/admin/';
+        } else {
+            return $templatePath;
         }
+    }
+
+    /**
+     * Get Locale float values
+     * @return array Array of decimal locale values ['decimal_point', 'thousands_sep']
+     */
+    public static function getLocaleInfo()
+    {
+        if (Context::getContext()->language->iso_code == 'it') {
+            return array(
+                'decimal_point' => ',',
+                'thousands_sep' => '.'
+            );
+        } else {
+            return array(
+                'decimal_point' => '.',
+                'thousands_sep' => ','
+            );
+        }
+    }
+
+    /**
+     * Display an input element for price values
+     * @param  float value Price value
+     * @param  string name Name of the element
+     * @param  string templatePath Optional Template path
+     * @return string HTML Template Input element
+     */
+    public static function getHtmlPriceTextElement($value, $name, $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name,
+                'id' => '',
+                'class' => 'input text-right fixed-width-sm input-float',
+                'value' => Tools::displayPrice($value),
+            )
+        );
+        $input = $smarty->fetch($templatePath.'html_element_text.tpl');
+        return $input;
+    }
+
+    /**
+     * Display an input element for percentage values
+     * @param  float $value Percentage value
+     * @param  string $name The name of the text element
+     * @param  string $templatePath Template path
+     * @return string HTML Template input element
+     */
+    public static function getHtmlPercentTextElement($value, $name, $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        $percentage = self::displayTaxRate($value);
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name,
+                'id' => '',
+                'class' => 'input text-right fixed-width-sm input-float',
+                'value' => $percentage
+            )
+        );
+        $input = $smarty->fetch($templatePath.'html_element_text.tpl');
+        return $input;
+    }
+
+    /**
+     * Display an input element for quantity values
+     * @param  int $value Quantity value
+     * @param  string $name Optional Name of the element
+     * @param  string $templatePath Optional Template Path
+     * @return string HTML Template input element
+     */
+    public static function getHtmlQuantityTextElement($value, $name = '', $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        if (empty($name)) {
+            $name = 'input_text_qty[]';
+        }
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name,
+                'id' => '',
+                'class' => 'input text-right fixed-width-sm input-integer',
+                'value' => $value,
+                'color' => $value<0?'#BB6060':'#555555',
+            )
+        );
+        $input = $smarty->fetch($templatePath.'html_element_text.tpl');
+        return $input;
+    }
+
+    public static function getHtmlButtonCallBack($name, $icon, $callback='javascript:void(0);', $color='', $title='', $templatePath='')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
         
         Context::getContext()->smarty->assign(
             array(
@@ -69,10 +174,7 @@ Class MpStockTools
      */
     public static function getHtmlIcon($name, $icon, $color = '', $title = '', $templatePath = '')
     {
-        /** Get Template path if not set **/
-        if (empty($templatePath)) {
-            $templatePath = _PS_MODULE_DIR_.'mpstock/views/templates/admin/';
-        }
+        $templatePath = self::getDefaultTemplatePath($templatePath);
         
         Context::getContext()->smarty->assign(
             array(
@@ -98,10 +200,7 @@ Class MpStockTools
      */
     public static function getHtmlHrefButton($name, $icon, $href='#', $target='_blank', $color='', $title='', $templatePath='')
     {
-        /** Get Template path if not set **/
-        if (empty($templatePath)) {
-            $templatePath = _PS_MODULE_DIR_.'mpstock/views/templates/admin/';
-        }
+        $templatePath = self::getDefaultTemplatePath($templatePath);
         
         Context::getContext()->smarty->assign(
             array(
@@ -124,10 +223,7 @@ Class MpStockTools
      */
     public static function getOptionsCombination($list, $templatePath = '')
     {
-        /** Get Template path if not set **/
-        if (empty($templatePath)) {
-            $templatePath = _PS_MODULE_DIR_.'mpstock/views/templates/admin/';
-        }
+        $templatePath = self::getDefaultTemplatePath($templatePath);
         
         Context::getContext()->smarty->assign(
             array(
@@ -145,10 +241,7 @@ Class MpStockTools
      */
     public static function getImageProduct($id_product, $templatePath = '')
     {
-        /** Get Template path if not set **/
-        if (empty($templatePath)) {
-            $templatePath = _PS_MODULE_DIR_.'mpstock/views/templates/admin/';
-        }
+        $templatePath = self::getDefaultTemplatePath($templatePath);
         
         $id_shop = (int)Context::getContext()->shop->id;
         $shop = new ShopCore($id_shop);
@@ -283,4 +376,171 @@ Class MpStockTools
 
         $list[$key] = $item;
     }
+
+    /**
+     * Display a float number into tax rate with percent symbol
+     * @param  float Tax rate value
+     * @return string Tax rate formatted value
+     */
+    public static function displayTaxRate($value)
+    {
+        $localeInfo = self::getLocaleInfo();
+        $output =  number_format(
+            $value,
+            2,
+            $localeInfo['decimal_point'],
+            $localeInfo['thousands_sep']
+        ) . ' %';
+
+        return $output;
+    }
+
+    /**
+     * Display a formatted price value
+     * @param  int quantity value
+     * @param  string optional templatePath
+     * @return string HTML span element with formatted price
+     */
+    public static function displayPrice($value, $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'style' => array(
+                    'color' => '#555555',
+                    'font-weight' => 'lighter',
+                ),
+                'value' => Tools::displayPrice($value),
+            )
+        );
+
+        return $smarty->fetch($templatePath.'html_element_span.tpl');
+    }
+
+    /**
+     * Display a quantity value into colored one
+     * @param  int quantity value
+     * @param  string optional templatePath
+     * @return string HTML span element with formatted quantity
+     */
+    public static function displayQuantity($value, $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+
+        $smarty = Context::getContext()->smarty;
+        if ($value>0) {
+            $smarty->assign(
+                array(
+                    'style' => array(
+                        'color' => '#50BB50',
+                        'font-weight' => 'bold',
+                    ),
+                    'value' => $value,
+                )
+            );
+        } else {
+            $smarty->assign(
+                array(
+                    'style' => array(
+                        'color' => '#BB5050',
+                        'font-weight' => 'bold',
+                    ),
+                    'value' => $value,
+                )
+            );
+        }
+
+        return $smarty->fetch($templatePath.'html_element_span.tpl');
+    }
+
+    /**
+     * Get all combinations of a specified product
+     * @param type $id_product product id to search
+     * @return array Array of combinations
+     * ['id_product_attribute', 'reference', 'name', 'ean13', 'price', 'wholesale_price', 'tax_rate']
+     */
+    public static function getCombinations($id_product)
+    {
+        $db = Db::getInstance();
+        /** Get id_product_attribute of specified id_product **/
+        $sql_product_attribute = new DbQueryCore();
+        $sql_product_attribute->select('id_product_attribute')
+            ->select('reference')
+            ->select('ean13')
+            ->select('price')
+            ->select('quantity')
+            ->select('wholesale_price')
+            ->select('quantity as stock')
+            ->from('product_attribute')
+            ->where('id_product='.(int)$id_product);
+        $result_product_attribute = $db->executeS($sql_product_attribute);
+        if (!$result_product_attribute) {
+            return array();
+        }
+        $combinations = array();
+        $tax_rate = self::getTaxRateFromIdProduct($id_product);
+        foreach ($result_product_attribute as $row) {
+            $sql_combination = new DbQueryCore();
+            $sql_combination->select('distinct a.id_attribute')
+                ->select('al.name')
+                ->from('attribute', 'a')
+                ->innerJoin('attribute_lang', 'al', 'al.id_attribute=a.id_attribute')
+                ->innerJoin('attribute_group', 'ag', 'ag.id_attribute_group=a.id_attribute_group')
+                ->innerJoin('product_attribute_combination', 'pac', 'pac.id_attribute=a.id_attribute')
+                ->where('al.id_lang='.(int) Context::getContext()->language->id)
+                ->where('pac.id_product_attribute='.(int)$row['id_product_attribute'])
+                ->orderBy('ag.position')
+                ->orderBy('al.name');
+            $result_combination = $db->executeS($sql_combination);
+            $name_combination = array();
+            if ($result_combination) {
+                foreach ($result_combination as $attribute) {
+                    $name_combination[] = $attribute['name'];
+                }
+                $combination = implode(' - ', $name_combination);
+            }
+            $combinations[] = array(
+                'id_product_attribute' => $row['id_product_attribute'],
+                'reference' => $row['reference'],
+                'ean13' => $row['ean13'],
+                'wholesale_price' => $row['wholesale_price'],
+                'price' => $row['price'],
+                'tax_rate' => $tax_rate,
+                'name' => $combination,
+                'stock' => $row['stock'],
+            );
+        }
+        usort($combinations, function($a, $b) {
+            $a = $a['name'];
+            $b = $b['name'];
+
+            if ($a == $b) return 0;
+            return ($a < $b) ? -1 : 1;
+        });
+        return $combinations;
+    }
+
+    public static function getTaxRateFromIdProduct($id_product)
+    {
+        if (!$id_product) {
+            return 0;
+        }
+        $db = Db::getInstance();
+        $sql_tax_group = new DbQueryCore();
+        $sql_tax_group->select('id_tax_rules_group')
+            ->from('product')
+            ->where('id_product='.(int)$id_product);
+        $id_tax_rules_group = (int)$db->getValue($sql_tax_group);
+
+        $sql = new DbQueryCore();
+        $sql->select('t.rate')
+            ->from('tax', 't')
+            ->innerJoin('tax_rule', 'tr', 'tr.id_tax=t.id_tax')
+            ->where('tr.id_tax_rules_group='.(int)$id_tax_rules_group);
+        $tax_rate = $db->getValue($sql);
+        return (float)$tax_rate;
+    }
+
 }

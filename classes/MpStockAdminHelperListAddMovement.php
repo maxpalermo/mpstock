@@ -39,7 +39,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
     public $link;
     protected $cookie;
     protected $className = 'AdminMpStock';
-    protected static $localeInfo;
+    protected $localeInfo;
     protected $table_name = 'mp_stock_import';
     protected $id_product;
     protected $name_product;
@@ -54,17 +54,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         $this->id_shop = (int)$this->context->shop->id;
         parent::__construct();
         $this->cookie = Context::getContext()->cookie;
-        if (Context::getContext()->language->iso_code == 'it') {
-            self::$localeInfo = array(
-                'decimal_point' => ',',
-                'thousands_sep' => '.'
-            );
-        } else {
-            self::$localeInfo = array(
-                'decimal_point' => '.',
-                'thousands_sep' => ','
-            );
-        }
+        $this->localeInfo = MpStockTools::getLocaleInfo();
         $this->id_product = (int)Tools::getValue('id_product', 0);
         $this->name_product = Tools::getValue('name_product', '');
         $this->smarty = Context::getContext()->smarty;
@@ -104,7 +94,7 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
     public function getOptionsCombination()
     {
         $list = array();
-        $combinations = self::getCombinations($this->id_product);
+        $combinations = MpStockTools::getCombinations($this->id_product);
         foreach ($combinations as $comb) {
             $row = array(
                 'value'=> $comb['id_product_attribute'],
@@ -219,68 +209,10 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         return $list;
     }
 
-    private function addText(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'text',
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addDate(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'date',
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addPrice(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'price',
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addHtml(&$list, $title, $key, $width, $alignment, $search = false)
-    {
-        $item = array(
-            'title' => $title,
-            'width' => $width,
-            'align' => $alignment,
-            'type' => 'bool',
-            'float' => true,
-            'search' => $search,
-        );
-
-        $list[$key] = $item;
-    }
-
-    private function addIcon($icon, $color, $title = '')
-    {
-        return "<i class='icon $icon' style='color: $color;'></i> ".$title;
-    }
-
     private function getList()
     {
         $output = array();
-        $combinations = self::getCombinations($this->id_product);
+        $combinations = MpStockTools::getCombinations($this->id_product);
         foreach ($combinations as $comb) {
             $row = array(
                 'id_mp_stock' => 0,
@@ -289,11 +221,11 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
                 'name' => Tools::strtoupper($comb['name']),
                 'reference' => $comb['reference'],
                 'ean13' => $comb['ean13'],
-                'qty' => $this->displayQuantity(0),
-                'stock' => $this->displayQuantityValue($comb['stock']),
-                'wholesale_price' => $this->displayPrice($comb['wholesale_price'], 'wholesale_price[]'),
-                'price' => $this->displayPrice($comb['price'], 'price[]'),
-                'tax_rate' => $this->displayPerc($comb['tax_rate'], 'input_tax_rate[]'),
+                'qty' => MpStockTools::getHtmlQuantityTextElement(0),
+                'stock' => MpStockTools::displayQuantity($comb['stock']),
+                'wholesale_price' => MpStockTools::getHtmlPriceTextElement($comb['wholesale_price'], 'wholesale_price[]'),
+                'price' => MpStockTools::getHtmlPriceTextElement($comb['price'], 'price[]'),
+                'tax_rate' => MpStockTools::getHtmlPercentTextElement($comb['tax_rate'], 'input_tax_rate[]'),
                 'action' => MpStockTools::getHtmlButtonCallBack('', 'icon icon-save', 'javascript:saveCombination(this);', '#3030AA')
                     .MpStockTools::getHtmlButtonCallBack('', 'icon icon-times', 'javascript:deleteCombination(this);', '#BB4040'),
                 'status' => MpStockTools::getHtmlIcon('icon_status[]', 'icon-edit', '#303090'),
@@ -332,179 +264,5 @@ Class MpStockAdminHelperListAddMovement extends HelperListCore
         );
         $select = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_select.tpl');
         return $select;
-    }
-
-    private function displayQuantityValue($value)
-    {
-        $this->smarty->assign(
-            array(
-                'style' => array(
-                    'color' => (int)$value<0?'#BB7070':'#50BB50',
-                    'font-weight' => (int)$value<0?'bold':'light',
-                    'text-align' => 'right',
-                ),
-                'value' => $value,
-            )
-        );
-        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_span.tpl');
-        return $input;
-    }
-
-    private function displayQuantity($value)
-    {
-        $this->smarty->assign(
-            array(
-                'name' => 'input_text_qty[]',
-                'id' => '',
-                'class' => 'input text-right fixed-width-sm input-integer',
-                'value' => $value,
-            )
-        );
-        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_text.tpl');
-        return $input;
-    }
-
-    private function displayPrice($value, $name)
-    {
-        $this->smarty->assign(
-            array(
-                'name' => $name,
-                'id' => '',
-                'class' => 'input text-right fixed-width-sm input-float',
-                'value' => Tools::displayPrice($value),
-            )
-        );
-        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_text.tpl');
-        return $input;
-    }
-
-    private function displayPerc($value, $name)
-    {
-        $percentage = self::displayPercentage($value);
-        $this->smarty->assign(
-            array(
-                'name' => $name,
-                'id' => '',
-                'class' => 'input text-right fixed-width-sm input-float',
-                'value' => $percentage
-            )
-        );
-        $input = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_text.tpl');
-        return $input;
-    }
-
-    public static function displayPercentage($value)
-    {
-        return number_format(
-            $value,
-            2,
-            self::$localeInfo['decimal_point'],
-            self::$localeInfo['thousands_sep']
-            ) . ' %';
-    }
-
-    /**
-     * Get all combinations of a specified product
-     * @param type $id_product product id to search
-     * @return array Array of combinations
-     * ['id_product_attribute', 'reference', 'name', 'ean13', 'price', 'wholesale_price', 'tax_rate']
-     */
-    public static function getCombinations($id_product)
-    {
-        $db = Db::getInstance();
-        /** Get id_product_attribute of specified id_product **/
-        $sql_product_attribute = new DbQueryCore();
-        $sql_product_attribute->select('id_product_attribute')
-            ->select('reference')
-            ->select('ean13')
-            ->select('price')
-            ->select('quantity')
-            ->select('wholesale_price')
-            ->select('quantity as stock')
-            ->from('product_attribute')
-            ->where('id_product='.(int)$id_product);
-        $result_product_attribute = $db->executeS($sql_product_attribute);
-        if (!$result_product_attribute) {
-            return array();
-        }
-        $combinations = array();
-        $tax_rate = self::getTaxRateFromIdProduct($id_product);
-        foreach ($result_product_attribute as $row) {
-            $sql_combination = new DbQueryCore();
-            $sql_combination->select('distinct a.id_attribute')
-                ->select('al.name')
-                ->from('attribute', 'a')
-                ->innerJoin('attribute_lang', 'al', 'al.id_attribute=a.id_attribute')
-                ->innerJoin('attribute_group', 'ag', 'ag.id_attribute_group=a.id_attribute_group')
-                ->innerJoin('product_attribute_combination', 'pac', 'pac.id_attribute=a.id_attribute')
-                ->where('al.id_lang='.(int) Context::getContext()->language->id)
-                ->where('pac.id_product_attribute='.(int)$row['id_product_attribute'])
-                ->orderBy('ag.position')
-                ->orderBy('al.name');
-            $result_combination = $db->executeS($sql_combination);
-            $name_combination = array();
-            if ($result_combination) {
-                foreach ($result_combination as $attribute) {
-                    $name_combination[] = $attribute['name'];
-                }
-                $combination = implode(' - ', $name_combination);
-            }
-            $combinations[] = array(
-                'id_product_attribute' => $row['id_product_attribute'],
-                'reference' => $row['reference'],
-                'ean13' => $row['ean13'],
-                'wholesale_price' => $row['wholesale_price'],
-                'price' => $row['price'],
-                'tax_rate' => $tax_rate,
-                'name' => $combination,
-                'stock' => $row['stock'],
-            );
-        }
-        usort($combinations, function($a, $b) {
-            $a = $a['name'];
-            $b = $b['name'];
-
-            if ($a == $b) return 0;
-            return ($a < $b) ? -1 : 1;
-        });
-        return $combinations;
-    }
-
-    public static function getTaxRateFromIdProduct($id_product)
-    {
-        if (!$id_product) {
-            return 0;
-        }
-        $db = Db::getInstance();
-        $sql_tax_group = new DbQueryCore();
-        $sql_tax_group->select('id_tax_rules_group')
-            ->from('product')
-            ->where('id_product='.(int)$id_product);
-        $id_tax_rules_group = (int)$db->getValue($sql_tax_group);
-
-        $sql = new DbQueryCore();
-        $sql->select('t.rate')
-            ->from('tax', 't')
-            ->innerJoin('tax_rule', 'tr', 'tr.id_tax=t.id_tax')
-            ->where('tr.id_tax_rules_group='.(int)$id_tax_rules_group);
-        $tax_rate = $db->getValue($sql);
-        return (float)$tax_rate;
-    }
-
-    public function addButton($link, $icon, $color = '#797979', $title = '', $newpage = true)
-    {
-        if ($newpage) {
-            $target = '_blank';
-        } else {
-            $target = '_top';
-        }
-        
-        return MpStockTools::getHtmlHrefButton('', $icon, $link, $target, $color, $title);
-    }
-
-    public function addLink($link, $content)
-    {
-        $link = "<a href='$link'>".$content."</a>";
-        return $link;
     }
 }
