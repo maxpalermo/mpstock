@@ -342,9 +342,7 @@ Class MpStockProductExtraHelperList extends HelperListCore
         $query .= 'order by date_add DESC'
             . ' limit ' .(int)$this->current_pagination 
             . ' offset ' . (int)$this->current_pagination*(int)$this->current_page;
-        PrestaShopLoggerCore::addLog('QUERY MOVEMENT: '.$query);
-        
-        //Save query in cookies
+        /** Save query in cookies **/
         Context::getContext()->cookie->export_query = $query;
         
         $result = $db->executeS($query);
@@ -392,19 +390,19 @@ Class MpStockProductExtraHelperList extends HelperListCore
     
     public function getName($id_movement)
     {
-        $movement = new MpStockObjectModel($id_movement);
+        $movement = new MpStockObjectModel($this->module, $id_movement);
         return $movement->name;
     }
     
     public function getReference($id_movement)
     {
-        $movement = new MpStockObjectModel($id_movement);
+        $movement = new MpStockObjectModel($this->module, $id_movement);
         return $movement->reference;
     }
     
     public function getMovementType($id_movement)
     {
-        $movement = new MpStockObjectModel($id_movement);
+        $movement = new MpStockObjectModel($this->module, $id_movement);
         return $movement->movement;
     }
     

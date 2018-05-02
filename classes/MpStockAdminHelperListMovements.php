@@ -242,6 +242,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $sql->select('distinct s.id_mp_stock')
             ->select('s.id_product')
             ->select('s.id_product_attribute')
+            ->select('s.id_mp_stock_type_movement')
             ->select('pa.reference')
             ->select('pa.quantity as stock')
             ->select('s.tax_rate')
@@ -309,6 +310,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
                     '#BB4040',
                     $this->module->l('Delete')
                 );
+                $row['movement'] = MpStockTools::getMovementName($row['id_mp_stock_type_movement']);
             }
         }
 

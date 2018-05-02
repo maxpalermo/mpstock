@@ -246,7 +246,6 @@ Class MpStockTools
         $id_shop = (int)Context::getContext()->shop->id;
         $shop = new ShopCore($id_shop);
         if ((int)$id_product == 0) {
-            PrestaShopLoggerCore::addLog('Invalid id product for image display.');
             return $shop->getBaseURL(true) . 'img/404.gif';
         }
         $db = Db::getInstance();
@@ -522,25 +521,83 @@ Class MpStockTools
         return $combinations;
     }
 
+    /**
+     * Get product combination name
+     * @param  int $id_product_attribute Id product attribute
+     * @return string|array The name of the product combination or the error
+     */
+    public static function getProductCombinationName($id_product_attribute)
+    {
+        $id_lang = (int)Context::getContext()->language->id;
+        $importErrors = array();
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('a.id_attribute')
+            ->select('a.color')
+            ->select('ag.position')
+            ->select('al.name')
+            ->from('attribute', 'a')
+            ->innerJoin('attribute_group', 'ag', 'ag.id_attribute_group=a.id_attribute_group')
+            ->innerJoin('attribute_lang', 'al', 'al.id_attribute=a.id_attribute')
+            ->innerJoin('product_attribute_combination', 'pac', 'pac.id_attribute=a.id_attribute')
+            ->where('al.id_lang='.(int)$id_lang)
+            ->where('pac.id_product_attribute='.(int)$id_product_attribute)
+            ->orderBy('ag.position');
+
+        $name = array();
+        $rows = $db->executeS($sql);
+        if (!$rows) {
+            $importErrors[] = sprintf(
+                "Error %s on product attribute %d",
+                $db->getMsgError(),
+                $id_product_attribute
+            );
+        } else {
+            foreach ($rows as $row) {
+                $name[] = Tools::strtolower($row['name']);
+            }
+        }
+        $name_str = implode(' ', $name);
+        if ($importErrors) {
+            return array(
+                'name' => '',
+                'errors' => $importErrors,
+            );
+        } else {
+            return MpStockTools::ucFirst($name_str);    
+        }
+    }
+
+    /**
+     * Get the tax rate amount from a product
+     * @param  int $id_product Id product
+     * @return float Tax rate percent
+     */
     public static function getTaxRateFromIdProduct($id_product)
     {
-        if (!$id_product) {
-            return 0;
-        }
         $db = Db::getInstance();
-        $sql_tax_group = new DbQueryCore();
-        $sql_tax_group->select('id_tax_rules_group')
-            ->from('product')
-            ->where('id_product='.(int)$id_product);
-        $id_tax_rules_group = (int)$db->getValue($sql_tax_group);
-
         $sql = new DbQueryCore();
         $sql->select('t.rate')
             ->from('tax', 't')
-            ->innerJoin('tax_rule', 'tr', 'tr.id_tax=t.id_tax')
-            ->where('tr.id_tax_rules_group='.(int)$id_tax_rules_group);
-        $tax_rate = $db->getValue($sql);
-        return (float)$tax_rate;
+            ->innerJoin('tax_rule', 'tr', 't.id_tax=tr.id_tax')
+            ->innerJoin('product', 'p', 'p.id_tax_rules_group=tr.id_tax_rules_group')
+            ->where('p.id_product='.(int)$id_product);
+        return (float)$db->getValue($sql);
     }
 
+    /**
+     * Get the movement name
+     * @param  int $id_mp_stock_type_movement Type movement id
+     * @return string|boolean The name of the movement or false
+     */
+    public static function getMovementName($id_mp_stock_type_movement)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+
+        $sql->select('name')
+            ->from('mp_stock_type_movement')
+            ->where('id_mp_stock_type_movement='.(int)$id_mp_stock_type_movement);
+        return $db->getValue($sql);
+    }
 }

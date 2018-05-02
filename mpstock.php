@@ -549,7 +549,6 @@ class MpStock extends Module
         $movement->exchange = (int)Tools::getValue('input_switch_exchange');
         
         $result = $movement->save();
-        PrestaShopLoggerCore::addLog('Save movement: ' . (int)$result);
         if (!$result) {
             $this->addError(sprintf($this->l('Error saving movement: %s'), Db::getInstance()->getMsgError()));
             return false;
@@ -563,7 +562,6 @@ class MpStock extends Module
         $movement = new MpStockMovementObjectModel($id);
         
         $result = $movement->delete();
-        PrestaShopLoggerCore::addLog('Deleted movement: ' . (int)$result);
         if (!$result) {
             $this->addError(sprintf($this->l('Error deleting movement: %s'), Db::getInstance()->getMsgError()));
             return false;

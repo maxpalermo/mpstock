@@ -45,12 +45,12 @@ Class MpStockAdminImportXML
     protected $report = array();
     protected $mpStockImport;
     protected $importErrors = array();
+    protected $id_mp_stock_type_movement;
 
 
-    public function __construct($module, $adminController)
+    public function __construct($module)
     {
         $this->module = $module;
-        $this->adminController = $adminController;
         $this->context = Context::getContext();
         $this->link = new LinkCore();
         $this->id_lang = (int)$this->context->language->id;
@@ -58,19 +58,14 @@ Class MpStockAdminImportXML
         $this->id_employee = (int)Context::getContext()->employee->id;        
         $this->cookie = Context::getContext()->cookie;
         $this->mpStockImport = new MpStockImportObjectModel();
-        if (Context::getContext()->language->iso_code == 'it') {
-            $this->localeInfo = array(
-                'decimal_point' => ',',
-                'thousands_sep' => '.'
-            );
-        } else {
-            $this->localeInfo = array(
-                'decimal_point' => '.',
-                'thousands_sep' => ','
-            );
-        }
+        $this->localeInfo = MpStockTools::getLocaleInfo();
     }
     
+    public function getImportErrors()
+    {
+        return $this->importErrors;
+    }
+
     public function import()
     {
         /** Get attachment **/
@@ -79,7 +74,7 @@ Class MpStockAdminImportXML
         $filename = Tools::strtolower($file_upload['name']);
         /** Accept only file with XML extension **/
         if (pathinfo($filename, PATHINFO_EXTENSION) != 'xml') {
-            $this->adminController->addError($this->l('Please selecta valid xml file.'));
+            $this->importErrors[] = $this->module->l('Please selecta valid xml file.', get_class($this));
             return false;
         }
         /** Get file content **/
@@ -98,29 +93,16 @@ Class MpStockAdminImportXML
                 $this->module->l('Invalid document type: %d', get_class($this)),
                 $type_movement
             );
-            $filename = $this->adminController->module->getPath()
-                .'report/report_'
-                .$filename
-                .'.txt';
-            $file = fopen(
-                $filename,
-                'w'
-            );
-            if ($file) {
-                foreach ($this->importErrors as $error) {
-                    fwrite($file, print_r($error,1));
-                }
-            }
-            fclose($file);
-            chmod($filename, 0777);
             Context::getContext()->controller->addError(
                 sprintf(
-                    $this->module->l('Invalid document type: %d'),
+                    $this->module->l('Invalid document type: %d', get_class($this)),
                     $type_movement
                 )
             );
-            return true;
+            return false;
         }
+        /** Set id type movement */
+        $this->id_mp_stock_type_movement = $type_movement;
         /** Get sign **/
         $sign = (string)$movement->sign;
         /** Insert file name in archive **/
@@ -130,41 +112,36 @@ Class MpStockAdminImportXML
             $result = $this->parseRows($xml->rows);
             if ($result) {
                 /** Insert rows in archive **/
-                $this->insertRows();
-            }
-        }
-        if ($this->importErrors) {
-            $filename = $this->adminController->module->getPath()
-                .'report/report_'
-                .$filename
-                .'.txt';
-            $file = fopen(
-                $filename,
-                'w'
-            );
-            if ($file) {
-                foreach ($this->importErrors as $error) {
-                    fwrite($file, print_r($error,1));
+                $result = $this->insertRows();
+                if ($result) {
+                    Context::getContext()->controller->addConfirmation(
+                        sprintf(
+                            $this->module->l('File %s imported successfully', get_class($this)),
+                            $file_upload['name']
+                        )
+                    );
+                    return true;
+                } else {
+                    $this->importErrors[] = $this->module->l('Error inserting products', get_class($this));
+                    return false;
                 }
+            } else {
+                $this->importErrors[] = $this->module->l('Error parsing products', get_class($this));
+                return false;
             }
-            fclose($file);
-            chmod($filename, 0777);
+        } else {
+            $this->importErrors[] = $this->module->l('Errors during import.', get_class($this));
+            return false;
         }
-        Context::getContext()->controller->addConfirmation(
-            sprintf(
-                $this->module->l('File %s imported successfully'),
-                $file_upload['name']
-            )
-        );
-        return true;
     }
     
     private function insertRows()
     {
+        $flag_error = false;
         foreach ($this->rows as $row) {
-            $stock = new MpStockObjectModel();
+            $stock = new MpStockObjectModel($this->module);
             $stock->id_mp_stock_import = (int)$this->mpStockImport->id;
-            $stock->id_mp_stock_type_movement = 0;
+            $stock->id_mp_stock_type_movement = $this->id_mp_stock_type_movement;
             $stock->id_mp_stock_exchange = 0;
             $stock->id_product = $row['id_product'];
             $stock->id_product_attribute = $row['id_product_attribute'];
@@ -180,29 +157,31 @@ Class MpStockAdminImportXML
             $stock->sign = $this->mpStockImport->sign;
             $stock->date_add = date('Y-m-d H:i:s');
             try {
-                $stock->save();
+                $result = $stock->save();
+                if (!$result) {
+                    $this->importErrors[] = sprintf(
+                        $this->module->l('Error %s saving product (%d) %s.', get_class($this)),
+                        Db::getInstance()->getMsgError(),
+                        $row['id_product_attribute'],
+                        $row['name']
+                    );  
+                    $flag_error = true;  
+                }
             } catch (Exception $ex) {
-                $this->addToReportError($stock, $ex->getCode(), $ex->getMessage());
-                $this->adminController->addError(
-                    sprintf(
-                        $this->l('Error inserting %s %s: %d %s'),
-                        $stock->reference,
-                        $stock->name,
-                        $ex->getCode(),
-                        $ex->getMessage()
-                    )
+                $this->importErrors[] = sprintf(
+                    $this->module->l('Error %s during import of product %s.', get_class($this)),
+                    $ex->getMessage(),
+                    $stock->name
                 );
+                $flag_error = true;
             }
         }
-    }
-    
-    private function addToReportError($stock, $code, $message)
-    {
-        $this->importErrors[] = array(
-            'stock' => $stock,
-            'error_code' => $code,
-            'error_message' => $message,
-        );
+        if ($flag_error) {
+            $this->importErrors[] = $this->module->l('MpStockObjectModel error inserting product.', get_class($this));
+            return false;
+        } else {
+            return true;
+        }
     }
     
     private function parseRows(SimpleXMLElement $rows)
@@ -218,7 +197,7 @@ Class MpStockAdminImportXML
             $price = (float)((string)$row->price);
             $wholesale_price = (float)((string)$row->wholesale_price);
             $extra_info = $this->getExtraInfo($ean13, $reference);
-            $output[] = array(
+            $product = array(
                 'ean13' => $ean13,
                 'reference' => $reference,
                 'qty' => $qty,
@@ -230,6 +209,9 @@ Class MpStockAdminImportXML
                 'price' => (float)$price,
                 'wholesale_price' => (float)$wholesale_price,
             );
+            $output[] = $product;
+            $this->importErrors[] = "product:" . print_r($product, 1);
+            $this->importErrors[] = "extra info:" . print_r($extra_info, 1);
         }
         $this->rows = $output;
         return true;
@@ -239,60 +221,39 @@ Class MpStockAdminImportXML
     {
         $product_attribute = $this->getProductAttribute($ean13, $reference);
         if (!$product_attribute) {
+            $this->importErrors[] = sprintf(
+                $this->module->l('Product %s with Ean13 %s not found.'),
+                $reference,
+                $ean13
+            );
             return false;
         }
-        $tax_rate = $this->getTaxRateFromIdProduct($product_attribute['id_product']);
-        $name = $this->getProductCombinationName($product_attribute['id_product_attribute']);
-        return array(
-            'id_product' => $product_attribute['id_product'],
-            'id_product_attribute' => $product_attribute['id_product_attribute'],
-            'tax_rate' => $tax_rate,
-            'name' => $name,
-        );
-    }
-    
-    private function getProductCombinationName($id_product_attribute)
-    {
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('a.id_attribute')
-            ->select('a.color')
-            ->select('ag.position')
-            ->select('al.name')
-            ->from('attribute', 'a')
-            ->innerJoin('attribute_group', 'ag', 'ag.id_attribute_group=a.id_attribute_group')
-            ->innerJoin('attribute_lang', 'al', 'al.id_attribute=a.id_attribute')
-            ->innerJoin('product_attribute_combination', 'pac', 'pac.id_attribute=a.id_attribute')
-            ->where('al.id_lang='.(int)$this->id_lang)
-            ->where('pac.id_product_attribute='.(int)$id_product_attribute)
-            ->orderBy('ag.position');
-        
-        $name = array();
-        $rows = $db->executeS($sql);
-        if (!$rows) {
-            $this->adminController->addError($db->getMsgError());
-            $name = array();
+        $tax_rate = MpStockTools::getTaxRateFromIdProduct($product_attribute['id_product']);
+        $name = MpStockTools::getProductCombinationName($product_attribute['id_product_attribute']);
+        if (is_array($name)) {
+            $this->importErrors[] = sprintf(
+                $this->module->l('Product %s with Ean13 %s has no name. Error: %s', get_class($this)),
+                $reference,
+                $ean13,
+                implode(',', $name['errors'])
+            );
+            return array(
+                'id_product' => $product_attribute['id_product'],
+                'id_product_attribute' => $product_attribute['id_product_attribute'],
+                'tax_rate' => $tax_rate,
+                'name' => $name['name'],
+                'errors' => $name['errors'],
+            );
         } else {
-            foreach ($rows as $row) {
-                $name[] = Tools::strtolower($row['name']);
-            }
+            return array(
+                'id_product' => $product_attribute['id_product'],
+                'id_product_attribute' => $product_attribute['id_product_attribute'],
+                'tax_rate' => $tax_rate,
+                'name' => $name,
+                'errors' => array(),
+            );
         }
-        $name_str = implode(' ', $name);
-        return MpStockTools::ucFirst($name);
     }
-    
-    private function getTaxRateFromIdProduct($id_product)
-    {
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('t.rate')
-            ->from('tax', 't')
-            ->innerJoin('tax_rule', 'tr', 't.id_tax=tr.id_tax')
-            ->innerJoin('product', 'p', 'p.id_tax_rules_group=tr.id_tax_rules_group')
-            ->where('p.id_product='.(int)$id_product);
-        return (float)$db->getValue($sql);
-    }
-
 
     private function getProductAttribute($ean13, $reference)
     {
@@ -305,7 +266,7 @@ Class MpStockAdminImportXML
             ->where('reference = \''.pSQL($reference).'\'');
         $row = $db->getRow($sql);
         if (!$row) {
-            $this->adminController->addError($db->getMsgError());
+            $this->importErrors[] = $db->getMsgError();
             return false;
         }
         return $row;
@@ -326,34 +287,14 @@ Class MpStockAdminImportXML
         try {
             $this->mpStockImport->add();
         } catch (Exception $ex) {
-            $this->adminController->addError(
-                sprintf(
-                    $this->l('Error inserting filename: %s.'),
-                    $ex->getMessage()
-                )
-            );
+            $this->importErrors[] = sprintf(
+                $this->module->l(
+                    "Error %s during import of %s", get_class($this)),
+                    $ex->getMessage(),
+                    $filename
+                );
             return false;
         }
         return (int)$this->mpStockImport->id;
-    }
-    
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    private function l($string, $class = null, $addslashes = false, $htmlentities = true)
-    {
-        if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
-        }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
 }

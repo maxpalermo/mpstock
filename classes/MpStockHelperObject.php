@@ -202,7 +202,6 @@ Class MpStockListHelperObject
     
     public function pagination()
     {
-        PrestaShopLoggerCore::addLog('$this->table='.$this->table);
         if (Tools::isSubmit('submitFilter'.$this->table)) {
             $this->helper->_default_pagination = (int)Tools::getValue($this->table.'_pagination', 20);
             $start = (int)Tools::getValue('submitFilter'.$this->table, 0) * $this->helper->_default_pagination;
@@ -218,7 +217,7 @@ Class MpStockListHelperObject
             ->where('id_employee_bo='.(int)$this->id_employee)
             ->where('idx between ' . $start . ' and ' . $end)
             ->orderBy('date_add DESC');
-        PrestaShopLoggerCore::addLog($sql->__toString());
+        
         $result = $db->executeS($sql);
         if ($result) {
             foreach($result as &$row) {
@@ -284,7 +283,7 @@ Class MpStockListHelperObject
                 'st.date_add between \'' . pSQL($this->date_start) . '\' and \'' . pSQL($this->date_end) . '\''
             );
         }
-        PrestaShopLoggerCore::addLog('SQL DATE: ' . $sql->__toString());
+        
         $result = $db->executeS($sql);
         if ($result) {
             return $result;
@@ -372,7 +371,7 @@ Class MpStockListHelperObject
             $id_product = (int)$row['id_product'];
             $id_product_attribute = (int)$row['id_product_attribute'];
             $attributes = $this->getProductAttribute($id_product, $id_product_attribute);
-            PrestaShopLoggerCore::addLog('attributes:' . print_r($attributes,1));
+            
             $row['image_url'] = $this->getImageProductAttribute($id_product_attribute, $id_product);
             $row['reference'] = pSQL($attributes['reference']);
             $row['name'] = pSQL($attributes['name']);
@@ -434,7 +433,6 @@ Class MpStockListHelperObject
         $id_shop = (int)Context::getContext()->shop->id;
         $shop = new ShopCore($id_shop);
         if ((int)$id_product_attribute == 0) {
-            PrestaShopLoggerCore::addLog('Invaid id product attribute.');
             return $shop->getBaseURL(true) . 'img/404.gif';
         }
         $db = Db::getInstance();
@@ -444,7 +442,6 @@ Class MpStockListHelperObject
             ->where('id_product_attribute='.(int)$id_product_attribute);
         $id_image = (int)$db->getValue($sql);
         if ((int)$id_image==0) {
-            PrestaShopLoggerCore::addLog('Invaid image attribute. get image product.');
             return MpStockTools::getImageProduct($id_product);
         }
         $image = new ImageCore($id_image);
@@ -480,8 +477,6 @@ Class MpStockListHelperObject
     {
         $this->date_start = $date_start . ' 00:00:00';
         $this->date_end = $date_end . ' 23:59:59';
-        PrestaShopLoggerCore::addLog('start: ' . $this->date_start);
-        PrestaShopLoggerCore::addLog('end: ' . $this->date_end);
         $html = $this->display();
         print Tools::jsonEncode(
             array(

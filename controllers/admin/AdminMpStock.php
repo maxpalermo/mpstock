@@ -93,6 +93,7 @@ class AdminMpStockController extends ModuleAdminController
         $this->link = new LinkCore();
         $list_content = '';
         $form_content = '';
+        $error_content = '';
         /** Ajax call **/
         if (Tools::isSubmit('ajax')) {
             $action = 'ajaxProcess' . ucfirst(Tools::getValue('action'));
@@ -101,8 +102,12 @@ class AdminMpStockController extends ModuleAdminController
         }
         /** Import XML file **/
         if (Tools::isSubmit('submitFormImport')) {
-            if ($this->processImportXML()) {
+            $result = $this->processImportXML();
+            if ($result === true) {
                 $this->addConfirmation($this->l('Import from XML done.'));
+            } else {
+                $this->addError($this->l('Errors during movements import.'));
+                $error_content = $result; 
             }
         }
         /** Edit movement **/
@@ -142,7 +147,7 @@ class AdminMpStockController extends ModuleAdminController
             $list_content = '';
         }
         $messages = $this->getMessages();
-        $this->content = $messages.$form_content.$list_content;
+        $this->content = $messages.$form_content.$list_content.$error_content;
 
         parent::initContent();
         return;
@@ -217,7 +222,7 @@ class AdminMpStockController extends ModuleAdminController
             );
             exit();
         }
-        $stock = new MpStockObjectModel((int)$id);
+        $stock = new MpStockObjectModel($this->module, (int)$id);
         $result = (int)$stock->delete();
         if ($result) {
            print Tools::jsonEncode(
@@ -246,7 +251,7 @@ class AdminMpStockController extends ModuleAdminController
     public function ajaxProcessAddMovement()
     {
         $record = Tools::getValue('record');
-        $stock = new MpStockObjectModel($record['id']);
+        $stock = new MpStockObjectModel($this->module, $record['id']);
         $stock->id_mp_stock_import = 0;
         $stock->id_mp_stock_exchange = 0;
         $stock->id_shop = $this->id_shop;
@@ -266,7 +271,6 @@ class AdminMpStockController extends ModuleAdminController
         /** Check if is an exchange movement **/
         $exchange =(int)$stock->isExchangeMovement();
         /** Save record **/
-        PrestaShopLoggerCore::addLog('before save=>sign: '. $stock->sign);
         $result = $stock->save();
         /** Failed saving **/
         if (!$result) {
@@ -323,13 +327,13 @@ class AdminMpStockController extends ModuleAdminController
         $id = MpStockObjectModel::getIdMovementByExchangeId($id_mp_stock_exchange);
         
         if ($id) {
-            $stock = new MpStockObjectModel($id);
+            $stock = new MpStockObjectModel($this->module, $id);
             $stock->qty = $qty;
             $stock->wholesale_price = $wholesale_price;
             $stock->price = $price;
             $stock->tax_rate = $tax_rate;
         } else {
-            $stock = new MpStockObjectModel();
+            $stock = new MpStockObjectModel($this->module);
             $stock->id_mp_stock_import = 0;
             $stock->id_mp_stock_exchange = $id_mp_stock_exchange;
             $stock->id_shop = $this->id_shop;
@@ -457,8 +461,20 @@ class AdminMpStockController extends ModuleAdminController
 
     private function processImportXML()
     {
-        $importXML = new MpStockAdminImportXML($this->module, $this);
+        $importXML = new MpStockAdminImportXML($this->module);
         $result = $importXML->import();
+        $errors = $importXML->getImportErrors();
+        if ($errors) {
+            $smarty = Context::getContext()->smarty;
+            $smarty->assign(
+                array(
+                    'import_errors' => $errors,
+                )
+            );
+            $panel = $smarty->fetch($this->module->getPath().'views/templates/admin/import_errors.tpl');
+            return $panel;
+        }
+        return true;
     }
 
     private function getLastFileName($folder)
@@ -865,14 +881,13 @@ class AdminMpStockController extends ModuleAdminController
 
     public function getRows($pagination = 50, $page = 1)
     {
-        $stock = new MpStockObjectModel();
+        $stock = new MpStockObjectModel($this->module);
         $rows =  $stock->getRows($pagination, $page);
         return $rows;
     }
 
     public function getListProducts(HelperListCore &$helper, $order = 'DESC')
     {
-        PrestaShopLoggerCore::addLog('Init getLIstProduct');
         $this->id_lang = (int)Context::getContext()->language->id;
         $this->id_shop = (int)Context::getContext()->shop->id;
 
@@ -894,7 +909,6 @@ class AdminMpStockController extends ModuleAdminController
             } else {
                 $offset = 0;
             }
-            PrestaShopLoggerCore::addLog('total: ' . $helper->listTotal . '\npagination: ' . $helper->_default_pagination . '\noffset: ' . $offset);
             $result = array_splice($result, $offset, $helper->_default_pagination);
 
             foreach ($result as $row) {
@@ -1031,8 +1045,6 @@ class AdminMpStockController extends ModuleAdminController
     {
         /** Check if user is logged **/
         $cookie = new CookieCore('psAdmin');
-        /** LOG **/
-        PrestaShopLoggerCore::addLog('Start XML import');
         /** COOKIE **/
         if (!$cookie->isLoggedBack()) {
             print Tools::jsonEncode(array(
@@ -1124,7 +1136,6 @@ class AdminMpStockController extends ModuleAdminController
                     continue;
                 }
                 $product = $this->getProductByEan13($ean13, $reference);
-                PrestaShopLoggerCore::addLog('PRODUCT:\n'.print_r($product,1));
                 if (!$product) {
                     array_push($json, $json, $this->displayMessage(
                         array(
@@ -1135,7 +1146,7 @@ class AdminMpStockController extends ModuleAdminController
                     ));
                     continue;
                 }
-                $stock = new MpStockObjectModel();
+                $stock = new MpStockObjectModel($this->module);
                 $stock->id = 0;
                 $stock->id_mp_stock_import = $id_import;
                 $stock->id_mp_stock_type_movement = 0;
@@ -1153,7 +1164,6 @@ class AdminMpStockController extends ModuleAdminController
                 $stock->date_add = date('Y-m-d H:i:s');
                 try {
                     $add = $stock->save();
-                    PrestaShopLoggerCore::addLog('Adding new stock:'.(int)$add);
                 } catch (Exception $ex) {
                     $add = false;
                     $error_message = "Exception: " . $ex->getMessage();
@@ -1177,7 +1187,6 @@ class AdminMpStockController extends ModuleAdminController
                 }
                 array_push($json, $product);
             }
-            PrestaShopLoggerCore::addLog(print_r($json,1));
             print Tools::jsonEncode($json);
         } else {
             $this->displayMessage(
@@ -1266,7 +1275,7 @@ class AdminMpStockController extends ModuleAdminController
             exit();
         }
         $result = array();
-        $mpstock = new MpStockObjectModel(null, $this->id_lang, $this->id_shop);
+        $mpstock = new MpStockObjectModel($this->module, null, $this->id_lang, $this->id_shop);
         $result['tax_rate'] = $mpstock->getTaxRate($id_product);
         $result['combinations'] = $mpstock->getProductAttributes($id_product);
         print Tools::jsonEncode($result);
@@ -1288,7 +1297,7 @@ class AdminMpStockController extends ModuleAdminController
             );
             exit();
         }
-        $mpstock = new MpStockObjectModel(null, $this->id_lang, $this->id_shop);
+        $mpstock = new MpStockObjectModel($this->module, null, $this->id_lang, $this->id_shop);
         print Tools::jsonEncode($mpstock->getProductAttributeValues($id_product_attribute));
         exit();
     }
@@ -1362,7 +1371,7 @@ class AdminMpStockController extends ModuleAdminController
     public function ajaxProcessDeleteMovement()
     {
         $id_movement = (int)Tools::getValue('id_movement', 0);
-        $mp_stock = new MpStockObjectModel($id_movement);
+        $mp_stock = new MpStockObjectModel($this->module, $id_movement);
         if ($mp_stock->delete()) {
             print Tools::jsonEncode(
                 array(
@@ -1400,7 +1409,7 @@ class AdminMpStockController extends ModuleAdminController
             );
             exit();
         }
-        $stock = new MpStockObjectModel();
+        $stock = new MpStockObjectModel($this->module);
         $stock->id_mp_stock_exchange = $row['exchange'];
         $stock->id_shop = $this->id_shop;
         $stock->id_product = $row['id_product'];
@@ -1514,7 +1523,7 @@ class AdminMpStockController extends ModuleAdminController
             $sign = (int)$par['input_hidden_sign'] * -1;
         }
 
-        $stock = new MpStockObjectModel();
+        $stock = new MpStockObjectModel($this->module);
         $stock->id_mp_stock = (int)$par['input_text_id'];
         $stock->id_mp_stock_exchange = $id_mp_stock_exchange;
         $stock->id_shop = (int)$this->id_shop;

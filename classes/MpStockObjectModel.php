@@ -68,6 +68,10 @@ Class MpStockObjectModel extends ObjectModelCore
     public $image;
     /** @var string movement Product movement **/
     public $movement;
+    /** @var array importErrors Array of errors **/
+    private $importErrors;
+    /** @var MpStock module object class MpStock **/
+    private $module;
 
     public static $definition = array(
         'table' => 'mp_stock',
@@ -152,7 +156,7 @@ Class MpStockObjectModel extends ObjectModelCore
         ),
     );
 
-    public function __construct($id = null, $id_lang = null, $id_shop = null) {
+    public function __construct($module, $id = null, $id_lang = null, $id_shop = null) {
         if (!$id_shop) {
             $this->id_shop = (int)Context::getContext()->shop->id;
         } else {
@@ -164,6 +168,8 @@ Class MpStockObjectModel extends ObjectModelCore
             $this->id_lang = (int)$id_lang;
         }
         parent::__construct($id, $this->id_lang, $this->id_shop);
+        $this->importErrors = array();
+        $this->module = $module;
         if ($id) {
             $this->reference = $this->getReference();
             $this->name = $this->getName();
@@ -226,7 +232,7 @@ Class MpStockObjectModel extends ObjectModelCore
         $result = $db->executeS($sql);
         if ($result) {
             foreach ($result as $row) {
-                $object = new MpStockObjectModel($row['id']);
+                $object = new MpStockObjectModel($this->module, $row['id']);
                 $collection[] = array(
                     'id' => $object->id,
                     'image' => $object->image,
@@ -388,7 +394,7 @@ Class MpStockObjectModel extends ObjectModelCore
                     ->where('al.id_lang='.(int)$this->id_lang)
                     ->where('pac.id_product_attribute='.(int)$row['id_product_attribute'])
                     ->orderBy('al.id_attribute');
-                PrestaShopLoggerCore::addLog($sql_row->__toString());
+                
                 $attributes = $db->executeS($sql_row);
                 if ($attributes) {
                     $names = array();
@@ -404,7 +410,7 @@ Class MpStockObjectModel extends ObjectModelCore
                 $result,
                 array(
                     'id_product_attribute' => 0,
-                    'name' => $this->l('Please select a combination.'),
+                    'name' => $this->module->l('Please select a combination.', get_class($this)),
                 )
             );
             return $result;
@@ -526,13 +532,13 @@ Class MpStockObjectModel extends ObjectModelCore
 
         $row = self::getMovement($id_movement);
         if ($row) {
-            PrestaShopLoggerCore::addLog('Row: ' . print_r($row, 1));
+            
             if ((int)$row['exchange'] && (int)$row['id_mp_stock_exchange'] == 0) {
                 $exchange = self::getTplVars((int)$row['id_mp_stock'], true);
             } else {
                 $exchange = self::getTplVars(0);
             }
-            PrestaShopLoggerCore::addLog('Exchange: ' . print_r($exchange, 1));
+            
             return array(
                 'input_text_id' => (int)$row['id_mp_stock'],
                 'input_select_products' => (int)$row['id_product'],
@@ -617,7 +623,6 @@ Class MpStockObjectModel extends ObjectModelCore
         } catch (Exception $ex) {
             $result = false;
             PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
-            //$this->errorMessage = "Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage();
         }
         return $result;
     }
@@ -646,7 +651,7 @@ Class MpStockObjectModel extends ObjectModelCore
             ->where('id_mp_stock_exchange='.(int)$this->id);
         $value = (int)$db->getValue($sql);
         if($value) {
-            $class = new MpStockObjectModel($value);
+            $class = new MpStockObjectModel($this->module, $value);
             return $class;
         } else {
             return false;
@@ -679,6 +684,11 @@ Class MpStockObjectModel extends ObjectModelCore
         return $qty;
     }
     
+    public function getImportErrors()
+    {
+        return $this->importErrors;
+    }
+
     public function save($null_values = false, $auto_date = true) {
         if (empty($this->date_add)) {
             $this->date_add = date('Y-m-d H:i:s');
@@ -687,9 +697,6 @@ Class MpStockObjectModel extends ObjectModelCore
             $this->id_mp_stock_import = 0;
         }
         $this->qty = abs($this->qty) * $this->sign;
-        
-        PrestaShopLoggerCore::addLog('save=>sign: '. $this->sign);
-        
         try {
             if ($this->id) {
                 $result =  $this->update($null_values);
@@ -702,12 +709,14 @@ Class MpStockObjectModel extends ObjectModelCore
                 $this->updateStock($id_stock_available, $this->qty);
             } else {
                 $result = false;
-                PrestaShopLoggerCore::addLog("Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage());
-                $this->errorMessage = "Exception on updateStock(): " . $ex->getCode() . '-' . $ex->getMessage();
+                $this->importErrors[] = sprintf(
+                    $this->module->l('Exception %d on updateStock(): %s', get_class($this)),
+                    $ex->getCode(),
+                    $ex->getMessage()
+                );
             }
         } catch (Exception $ex) {
             $result = false;
-            PrestaShopLoggerCore::addLog("Exception on save(): " . $ex->getCode() . '-' . $ex->getMessage());
             $this->errorMessage = "Exception on save(): " . $ex->getCode() . '-' . $ex->getMessage();
         }
         return $result;  
@@ -735,7 +744,7 @@ Class MpStockObjectModel extends ObjectModelCore
         }
 
         foreach($id_movements as $id_movement) {
-            $movement = new MpStockObjectModel($id_movement);
+            $movement = new MpStockObjectModel($this->module, $id_movement);
             if ($movement) {
                 $this->id = $movement->id;
                 $this->id_product = $movement->id_product;
@@ -743,7 +752,7 @@ Class MpStockObjectModel extends ObjectModelCore
                 $result = $this->delete();
                 if (!$result) {
                     Context::getContext()->controller->errors[] = sprintf(
-                        $this->l('Error deleting %s: %s'),
+                        $this->module->l('Error deleting %s: %s', get_class($this)),
                         self::getReference($this->id_product),
                         Db::getInstance()->getMsgError()
                     );

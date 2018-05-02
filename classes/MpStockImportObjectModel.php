@@ -97,24 +97,4 @@ Class MpStockImportObjectModel extends ObjectModelCore
         }
         parent::__construct($id, $id_lang, $id_shop);
     }
-    
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
-    {
-        if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
-        }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
-    }
 }

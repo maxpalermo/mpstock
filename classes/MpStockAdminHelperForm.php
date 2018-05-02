@@ -50,17 +50,7 @@ Class MpStockAdminHelperForm extends HelperFormCore
         $this->id_lang = (int)$this->context->language->id;
         parent::__construct();
         $this->cookie = Context::getContext()->cookie;
-        if (Context::getContext()->language->iso_code == 'it') {
-            $this->localeInfo = array(
-                'decimal_point' => ',',
-                'thousands_sep' => '.'
-            );
-        } else {
-            $this->localeInfo = array(
-                'decimal_point' => '.',
-                'thousands_sep' => ','
-            );
-        }
+        $this->localeInfo = MpStockTools::getLocaleInfo();
     }
     
     public function display()
@@ -124,17 +114,17 @@ Class MpStockAdminHelperForm extends HelperFormCore
                         'icon' => 'process-icon-duplicate',
                         'href' => $current_index.'&show_movements',
                     ),
+                    'config' => array(
+                        'title' => $this->module->l('Configuration', get_class($this)),
+                        'icon' => 'process-icon-cogs',
+                        'href' => $this->link->getAdminLink('AdminModules')
+                            .'&configure=mpstock'
+                            .'&tab_module=administration'
+                            .'&module_name=mpstock'
+                    ),
                 ),
             )
         );
-        
-        if (Context::getContext()->controller->errors) {
-            $fields_form['form']['buttons']['get_report'] = array(
-                'title' => $this->module->l('Get errors report', get_class($this)),
-                'icon' => 'process-icon-flag',
-                'href' => $current_index.'&ajax=true&action=getErrorsReport',
-            );
-        }
         
         return (array($fields_form));
     }
