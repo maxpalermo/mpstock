@@ -27,8 +27,9 @@
 if (!defined('_PS_VERSION_')) {
     exit;
 }
-require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockMovementObjectModel.php';
-require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockHelperObject.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockTypeMovementObjectModel.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockHelperFormAddTypeMovement.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockHelperListTypeMovement.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockProductExtraHelperForm.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockProductExtraHelperList.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockTools.php';
@@ -42,7 +43,10 @@ class MpStock extends Module
     protected $mpMovement;
     public $link;
     public $smarty;
-    protected $messages = array();
+    private $errors = array();
+    private $warnings = array();
+    private $confirmations = array();
+
     public function __construct()
     {
         $this->name = 'mpstock';
@@ -50,11 +54,10 @@ class MpStock extends Module
         $this->version = '1.0.0';
         $this->author = 'Digital Solutions®';
         $this->need_instance = 0;
-        /**
-         * Set $this->bootstrap to true if your module is compliant with bootstrap (PrestaShop 1.6)
-         */
         $this->bootstrap = true;
+        /** CONSTRUCT **/
         parent::__construct();
+        /** OTHER CONFIG **/
         $this->displayName = $this->l('MP Stock manager');
         $this->description = $this->l('With this module you can manage stock quantity in your shop.');
         $this->confirmUninstall = $this->l('Are you sure you want to uninstall?');
@@ -65,24 +68,93 @@ class MpStock extends Module
         $this->smarty = Context::getContext()->smarty;
     }
     
+    /**
+     * Return the admin class name
+     * @return string Admin class name
+     */
+    public function getAdminClassName()
+    {
+        return $this->adminClassName;
+    }
+    
+    /**
+     * Return the Admin Template Path
+     * @return string The admin template path
+     */
+    public function getAdminTemplatePath()
+    {
+        return $this->getPath().'views/templates/admin/';
+    }
+    
+    /**
+     * Get the Id of current language
+     * @return int id language
+     */
+    public function getIdLang()
+    {
+        return (int)$this->id_lang;
+    }
+    
+    /**
+     * Get the Id of current shop
+     * @return int id shop
+     */
+    public function getIdShop()
+    {
+        return (int)$this->id_shop;
+    }
+    
+    /**
+     * Get The URL path of this module
+     * @return string The URL of this module
+     */
+    public function getUrl()
+    {
+        return $this->_path;
+    }
+    
+    /**
+     * Return the physical path of this module
+     * @return string The path of this module
+     */
+    public function getPath()
+    {
+        return $this->local_path;
+    }
+
+    /**
+     * Add a message to Errors collection
+     * @param string $message Message to add to collection
+     */
     public function addError($message)
     {
-        $this->messages[] = $this->displayError($message);
+        $this->errors[] = $message;
     }
     
+    /**
+     * Add a message to Warnings collection
+     * @param string $message Message to add to collection
+     */
     public function addWarning($message)
     {
-        $this->messages[] = $this->displayWarning($message);
+        $this->warnings[] = $message;
     }
     
+    /**
+     * Add a message to Confirmations collection
+     * @param string $message Message to add to collection
+     */
     public function addConfirmation($message)
     {
-        $this->messages[] = $this->displayConfirmation($message);
+        $this->confirmations[] = $message;
     }
     
+    /**
+     * Check if there is an Ajax call and execute it.
+     */
     public function ajax()
     {
-        if (Tools::isSubmit('ajax')) {
+        if (Tools::isSubmit('ajax') && Tools::isSubmit('action')) {
             $action = 'ajaxProcess' . Tools::ucfirst(Tools::getValue('action'));
             $this->$action();
             exit();
@@ -90,9 +162,24 @@ class MpStock extends Module
     }
     
     /**
-     * Don't forget to create update methods if needed:
-     * http://doc.prestashop.com/display/PS16/Enabling+the+Auto-Update
+     * Display Messages collections
+     * @return string HTML messages
      */
+    public function displayMessages()
+    {
+        $output = array();
+        foreach($this->errors as $msg) {
+            $output[] = $this->displayError($msg);
+        }
+        foreach($this->warnings as $msg) {
+            $output[] = $this->displayWarning($msg);
+        }
+        foreach($this->confirmations as $msg) {
+            $output[] = $this->displayConfirmation($msg);
+        }
+        return implode("", $output);
+    }
+
     public function install()
     {
         return parent::install() &&
@@ -103,6 +190,7 @@ class MpStock extends Module
             $this->registerHook('displayBackOfficeHeader') &&
             $this->installTab('', $this->adminClassName, $this->l('MP Quick Store'));
     }
+
     public function uninstall()
     {
         return parent::uninstall() && 
@@ -182,7 +270,6 @@ class MpStock extends Module
                 PrestaShopLoggerCore::addLog('Install MPSTOCK: error '.$ex->getCode().' '.$ex->getMessage());
             }
         }
-        
         return true;
     }
     
@@ -231,342 +318,83 @@ class MpStock extends Module
         }
     }
     
-    /**
-     * Return the admin class name
-     * @return string Admin class name
-     */
-    public function getAdminClassName()
-    {
-        return $this->adminClassName;
-    }
-    
-    /**
-     * Return the Admin Template Path
-     * @return string The admin template path
-     */
-    public function getAdminTemplatePath()
-    {
-        return $this->getPath().'views/templates/admin/';
-    }
-    
-    /**
-     * Get the Id of current language
-     * @return int id language
-     */
-    public function getIdLang()
-    {
-        return (int)$this->id_lang;
-    }
-    
-    /**
-     * Get the Id of current shop
-     * @return int id shop
-     */
-    public function getIdShop()
-    {
-        return (int)$this->id_shop;
-    }
-    
-    /**
-     * Get The URL path of this module
-     * @return string The URL of this module
-     */
-    public function getUrl()
-    {
-        return $this->_path;
-    }
-    
-    /**
-     * Return the physical path of this module
-     * @return string The path of this module
-     */
-    public function getPath()
-    {
-        return $this->local_path;
-    }
-    
     public function getContent()
     {
-        $this->messages = array();
-        if (Tools::isSubmit('ajax')) {
-            $action = 'ajaxProcess' . Tools::getValue('action');
-            $this->$action();
-            exit();
-        }
+        /** Check if there is an Ajax call **/
+        $this->ajax();
+        /** Sumbmit new movement  **/
         if (Tools::isSubmit('submitNewMovement')) {
-            return $this->initForm();
-        } elseif (Tools::isSubmit('submitSaveMovement')) {
-            if ($this->processSaveMovement()) {
-                $this->addConfirmation($this->l('Movement type saved successfully.'));
-            }
-            return implode('<br>', $this->messages).$this->initList() . $this->initScript();
-        } elseif (Tools::isSubmit('deleteMovement')) {
-            if ($this->processDeleteMovement()) {
-                $this->addConfirmation($this->l('Movement type deleted successfully.'));
-            }
-            return implode('<br>', $this->messages).$this->initList().$this->initScript();
+            $form = new MpStockHelperFormAddTypeMovement($this);
+            return $form->display();
+        /** Submit edit movement */
         } elseif (Tools::isSubmit('editMovement')) {
-            return $this->initForm();
-        } else {
-            return implode('<br>', $this->messages).$this->initList() . $this->initScript();
-        }
-    }
-    
-    public function initForm()
-    {
-        $fields_form = array(
-            'form' => array(
-                'legend' => array(
-                    'title' => $this->l('Movement type'),
-                    'icon' => 'icon-cogs',
-                ),
-                'input' => array(
-                    array(
-                        'required' => false,
-                        'type' => 'text',
-                        'name' => 'input_text_id_movement',
-                        'label' => $this->l('Id'),
-                        'desc' => $this->l('Id movement, you can\'t edit this field.'),
-                        'prefix' => '<i class="icon-chevron-right"></i>',
-                        'suffix' => '<i class="icon-gear"></i>',
-                        'class' => 'input fixed-width-sm',
-                    ),
-                    array(
-                        'required' => true,
-                        'type' => 'text',
-                        'name' => 'input_text_name',
-                        'label' => $this->l('Name'),
-                        'desc' => $this->l('Insert the name of the stock movement.'),
-                        'prefix' => '<i class="icon-chevron-right"></i>',
-                        'suffix' => '<i class="icon-list-ul"></i>',
-                        'class' => 'input fixed-width-xxl',
-                    ),
-                    array(
-                        'required' => true,
-                        'type' => 'select',
-                        'name' => 'input_select_sign',
-                        'label' => $this->l('Sign'),
-                        'desc' => $this->l('Select the sign of the stock movement.'),
-                        'prefix' => '<i class="icon-chevron-right"></i>',
-                        'suffix' => '<i class="icon-list-ul"></i>',
-                        'class' => 'input fixed-width-sm',
-                        'options' => array(
-                            'query' => array(
-                                array(
-                                    'id' => '1',
-                                    'name' => '1',
-                                ),
-                                array(
-                                    'id' => '-1',
-                                    'name' => '-1',
-                                )
-                            ),
-                            'id' => 'id',
-                            'name' => 'name',
-                        ),
-                    ),
-                    array(
-                        'required' => true,
-                        'type' => 'switch',
-                        'name' => 'input_switch_exchange',
-                        'label' => $this->l('Exchange'),
-                        'desc' => $this->l('If set stock will be charged with another product'),
-                        'values' => array(
-                            array(
-                                'id' => 'id_switch_exchange_on',
-                                'value' => '1',
-                                'label' => $this->l('YES'),
-                            ),
-                            array(
-                                'id' => 'id_switch_exchange_off',
-                                'value' => '0',
-                                'label' => $this->l('NO'),
-                            ),
-                        ),
-                    ),
-                ),
-                'submit' => array(
-                    'title' => $this->l('Save'),
-                    'icon' => 'process-icon-save'
-                ),
-            ),
-        );
-        
-        $helper = new HelperFormCore();
-        $helper->table = 'mp_stock_type_movement';
-        $helper->default_form_language = (int)$this->id_lang;
-        $helper->allow_employee_form_lang = (int) Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANGUAGE');
-        $helper->submit_action = 'submitSaveMovement';
-        $helper->currentIndex = $this->link->getAdminLink('AdminModules', false) 
-            . '&configure=' . $this->name
-            . '&tab_module=administration' 
-            . '&module_name=mpstock';
-        $helper->token = Tools::getAdminTokenLite('AdminModules');
-        if (Tools::isSubmit('submitEditMovement')) {
-            $submit_values = Tools::getAllValues();
-            $output = array();
-            foreach($submit_values as $key=>$value) {
-                if(is_array($value)) {
-                    $output[$key.'[]'] = $value;
+            $id_movement = (int)Tools::getValue('editMovement', 0);
+            if ($id_movement) {
+                $form = new MpStockHelperFormAddTypeMovement($this);
+                return $form->display();
+            }
+        /** Submit delete movement **/
+        } elseif (Tools::isSubmit('deleteMovement')) {
+            $id_movement = (int)Tools::getValue('deleteMovement', 0);
+            if ($id_movement) {
+                $movement = new MpStockTypeMovementObjectModel($id_movement);
+                if ($movement->delete()) {
+                    $this->addConfirmation($this->l('Movement type deleted successfully.'));
                 } else {
-                    $output[$key] = $value;
+                    $this->addError($movement->getErrorMessage());
                 }
             }
-            $helper->tpl_vars = array(
-                'fields_value' => $output,
-                'languages' => $this->context->controller->getLanguages(),
-            );
-        } else {
-            $helper->tpl_vars = array(
-                'fields_value' => array(
-                    'input_text_id_movement' => 0,
-                    'input_text_name' => '',
-                    'input_select_sign' => '1',
-                    'input_switch_exchange' => 0,
-                ),
-                'languages' => $this->context->controller->getLanguages(),
-            );
+        /** Submit save movement **/
+        } elseif (Tools::isSubmit('submitSaveMovement')) {
+            $this->processSaveMovement();
         }
-        return $helper->generateForm(array($fields_form));
-    }
-    
-    public function initList()
-    {
-        $fields_list = array(
-            'check' => array(
-                'title' => '',
-                'width' => 16,
-                'type' => 'bool',
-                'align' => 'text-center',
-                'float' => true,
-                'search' => false,
-            ),
-            'id_mp_stock_type_movement' => array(
-                'title' => $this->l('Id'),
-                'width' => 16,
-                'type' => 'bool',
-                'align' => 'text-right',
-                'float' => true,
-                'search' => false,
-            ),
-            'flag' => array(
-                'title' => $this->l('Language'),
-                'width' => 24,
-                'type' => 'bool',
-                'align' => 'text-center',
-                'float' => true,
-                'search' => false,
-            ),
-            'name' => array(
-                'title' => $this->l('Name'),
-                'width' => 'auto',
-                'type' => 'text',
-                'align' => 'text-left',
-                'search' => false,
-            ),
-            'sign' => array(
-                'title' => $this->l('Sign'),
-                'width' => 32,
-                'type' => 'bool',
-                'align' => 'text-center',
-                'float' => true,
-                'search' => false,
-            ),
-            'exchange' => array(
-                'title' => $this->l('Exchange'),
-                'width' => 32,
-                'type' => 'bool',
-                'align' => 'text-center',
-                'float' => true,
-                'search' => false,
-            ),
-            'actions' => array(
-                'title' => $this->l('Actions'),
-                'width' => 'auto',
-                'type' => 'bool',
-                'align' => 'text-center',
-                'float' => true,
-                'search' => false,
-            ),
-        );
-        $this->mpMovement = new MpStockMovementObjectModel();
-        $list = $this->mpMovement->getListMovements();
-        
-        $helper = new HelperListCore();
-        $helper->shopLinkType = '';
-        $helper->simple_header = false;
-        $helper->identifier = 'id_mp_stock';
-        $helper->show_toolbar = true;
-        $helper->title = $this->l('Stock movements type');
-        $helper->table = 'mp_stock';
-        $helper->token = Tools::getAdminTokenLite('AdminModules');
-        $helper->currentIndex = $this->link->getAdminLink('AdminModules', false);
-        $helper->listTotal = count($list);
-        $helper->no_link = true;
-        $helper->toolbar_btn = array(
-            'new' => array(
-                'href' => '',
-                'desc' => $this->l('New movement'),
-            ),
-            'preview' => array(
-                'href' => '',
-                'desc' => $this->l('Print report'),
-            ),
-            'dropdown' => array(
-                'href' => '',
-                'desc' => $this->l('Find movements'),
-            )
-        );
-        
-        return $helper->generateList($list, $fields_list);
-    }
-    
-    private function initScript()
-    {
-        $this->smarty->assign(
-            array(
-                'token' => Tools::getAdminTokenLite('AdminModules'),
-                'loading_gif' => $this->getURL() . 'views/img/loading.gif',
-            )
-        );
-        $script = $this->smarty->fetch($this->getPath() . 'views/templates/admin/getContent.tpl');
-        return $script;
+        /** Display default list **/
+        $list = new MpStockHelperListTypeMovement($this);
+        return $this->displayMessages().$list->display();
     }
     
     public function processSaveMovement()
     {
-        if ((int)Tools::getValue('input_text_id_movement', 0) == 0) {
+        $id_mp_stock_type_movement = (int)Tools::getValue('input_id_mp_stock_type_movement', 0);
+        $name = Tools::getValue('input_name', '');
+        $sign = (int)Tools::getValue('input_sign', '1');
+        $exchange = (int)Tools::getValue('input_exchange', 0);
+
+        if (!$id_mp_stock_type_movement) {
             $this->addError($this->l('Please, insert a valid movement id.'));
             return false;
         }
-        $movement = new MpStockMovementObjectModel();
-        $movement->force_id = true;
-        $movement->id_mp_stock_type_movement = (int)Tools::getValue('input_text_id_movement', 0);
-        $movement->id_lang = (int)$this->id_lang;
-        $movement->id_shop = (int)$this->id_shop;
-        $movement->name = pSQL(Tools::getValue('input_text_name', ''));
-        $movement->sign = (int)Tools::getValue('input_select_sign', '1');
-        $movement->exchange = (int)Tools::getValue('input_switch_exchange');
-        
-        $result = $movement->save();
+        if (!$name) {
+            $this->addError($this->l('Please, insert a valid name for this movement.'));
+            return false;
+        }
+        $exists = (int)MpStockTypeMovementObjectModel::exists($id_mp_stock_type_movement);
+        if ($exists) {
+            $movement = new MpStockTypeMovementObjectModel($id_mp_stock_type_movement);
+            $movement->id_lang = (int)$this->id_lang;
+            $movement->id_shop = (int)$this->id_shop;
+            $movement->name = $name;
+            $movement->sign = $sign;
+            $movement->exchange = $exchange;
+            $result = $movement->update();
+        } else {
+            $movement = new MpStockTypeMovementObjectModel();
+            $movement->force_id = true;
+            $movement->id = $id_mp_stock_type_movement;
+            $movement->id_lang = (int)$this->id_lang;
+            $movement->id_shop = (int)$this->id_shop;
+            $movement->name = $name;
+            $movement->sign = $sign;
+            $movement->exchange = $exchange;
+            $result = $movement->add();
+        }
         if (!$result) {
             $this->addError(sprintf($this->l('Error saving movement: %s'), Db::getInstance()->getMsgError()));
             return false;
+        } else {
+            $this->addConfirmation($this->l('Movement type saved successfully.'));
+            return true;
         }
-        return true;
-    }
-    
-    public function processDeleteMovement()
-    {
-        $id = (int)Tools::getValue('deleteMovement', 0);
-        $movement = new MpStockMovementObjectModel($id);
-        
-        $result = $movement->delete();
-        if (!$result) {
-            $this->addError(sprintf($this->l('Error deleting movement: %s'), Db::getInstance()->getMsgError()));
-            return false;
-        }
-        return true;
     }
     
     public function hookDisplayAdminProductsExtra()
@@ -578,7 +406,6 @@ class MpStock extends Module
             $page = (int)Tools::getValue('submitFiltermp_stock');
             $list = new MpStockProductExtraHelperList($this, $pagination, $page);
             return $list->display();
-            
         }
         /** Check if has been submitted find button **/
         if (Tools::isSubmit('submitFormFindMovements')) {           
@@ -607,12 +434,12 @@ class MpStock extends Module
     }
     
     public function hookDisplayBackOfficeHeader()
-  {
-    $ctrl = $this->context->controller;
-    if ($ctrl instanceof AdminController && method_exists($ctrl, 'addCss')) {
+    {
+        $ctrl = $this->context->controller;
+        if ($ctrl instanceof AdminController && method_exists($ctrl, 'addCss')) {
             $ctrl->addCss($this->_path . 'views/css/icon-menu.css');
         }
-  }
+    }
     
     public function ajaxProcessFindMovements()
     {
@@ -649,8 +476,6 @@ class MpStock extends Module
                 'html' => $html,
             )
         );
-        //$table = new MpStockListHelperObject($id_product, $id_employee, $this);
-        //print $table->findMovements($date_start, $date_end);
     }
     
     public function ajaxProcessExportCSV()

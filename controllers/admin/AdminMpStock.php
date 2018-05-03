@@ -29,6 +29,7 @@ ini_set('post_max_size', '128M');
 ini_set('upload_max_filesize', '128M');
 
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminImportXML.php';
+require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminImportCSV.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperForm.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListDocuments.php';
 require_once _PS_MODULE_DIR_ . 'mpstock/classes/MpStockAdminHelperListMovements.php';
@@ -96,18 +97,29 @@ class AdminMpStockController extends ModuleAdminController
         $error_content = '';
         /** Ajax call **/
         if (Tools::isSubmit('ajax')) {
-            $action = 'ajaxProcess' . ucfirst(Tools::getValue('action'));
+            $action = 'ajaxProcess' . Tools::ucfirst(Tools::getValue('action'));
             print $this->$action();
             exit();
         }
-        /** Import XML file **/
+        /** Import file **/
         if (Tools::isSubmit('submitFormImport')) {
-            $result = $this->processImportXML();
+            $attachment = Tools::fileAttachment('input_file_import', false);
+            $split = explode(".", $attachment['name']);
+            $extension = end($split);
+            switch (Tools::strtolower($extension)) {
+                case 'xml':
+                    $result = $this->processImportXML();
+                    break;
+                case 'csv':
+                    $result = $this->processImportCSV();
+                    break;
+                default:
+                    $this->addError($this->module->l('Please select a CSV or XML file.', get_class($this)));
+                    $result = false;
+            }
+            
             if ($result === true) {
-                $this->addConfirmation($this->l('Import from XML done.'));
-            } else {
-                $this->addError($this->l('Errors during movements import.'));
-                $error_content = $result; 
+                $this->addConfirmation($this->l('Import from document done.'));
             }
         }
         /** Edit movement **/
@@ -151,43 +163,6 @@ class AdminMpStockController extends ModuleAdminController
 
         parent::initContent();
         return;
-
-
-        /**
-         * DISPLAY DEFAULT PAGE
-         */
-        $this->content = implode('<br>', $this->messages) . $this->createTable() . $this->initScript();
-        parent::initContent();
-        return;
-
-
-        if (Tools::isSubmit('mp_stockBox') || Tools::isSubmit('deletemp_stock')) {
-            if (Tools::isSubmit('mp_stockBox')) {
-                $id_movement = Tools::getValue('mp_stockBox');
-            } else {
-                $id_movement = (int)Tools::getValue('id_mp_stock');
-            }
-            MpStockObjectModel::deletemovement($id_movement);
-            if (Db::getInstance()->getNumberError() == 0) {
-                $this->messages = array(
-                    $this->module->displayConfirmation($this->l('Selected movements deleted successfully'))
-                );
-            } else {
-                $this->messages = array();
-                $this->errors[] = sprintf($this->l('Error deleting movements: %s'), Db::getInstance()->getMsgError());
-            }
-        }
-
-        if(Tools::isSubmit('submitNewmovement')) {
-            $this->content = $this->initForm() . $this->initScript();
-        } else {
-            $this->content = implode('<br>', $this->messages) . $this->initList() . $this->initScript();
-        }
-
-        $helperList = new MpStockAdminHelperList($this->module);
-        $this->content = $helperList->display();
-
-        parent::initContent();
     }
 
     private function getMessages()
@@ -431,39 +406,30 @@ class AdminMpStockController extends ModuleAdminController
         exit();
     }
 
-    public function ajaxProcessGetErrorsReport()
-    {
-        $folder = $this->module->getPath().'report';
-        $filename = $this->getLastFileName($folder);
-        if (!$filename || basename($filename) == 'index.php') {
-            $filename = 'No_errors.txt';
-            $filesize = 11;
-        } else {
-            $filesize = filesize($folder.'/'.$filename);
-        }
-
-        header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename='.$filename);
-        header('Expires: 0');
-        header('Cache-Control: must-revalidate');
-        header('Pragma: public');
-        header('Content-Length: ' . $filesize);
-
-        if ($filename == 'No_errors.txt') {
-            print $this->l('No errors.');
-            exit();
-        } else {
-            print "read filename:".Tools::substr($filename,0,Tools::strlen($filename)-4).PHP_EOL;
-            readfile($folder.'/'.$filename);
-            exit();
-        }
-    }
-
     private function processImportXML()
     {
         $importXML = new MpStockAdminImportXML($this->module);
         $result = $importXML->import();
         $errors = $importXML->getImportErrors();
+        if ($errors) {
+            $smarty = Context::getContext()->smarty;
+            $smarty->assign(
+                array(
+                    'import_errors' => $errors,
+                )
+            );
+            $panel = $smarty->fetch($this->module->getPath().'views/templates/admin/import_errors.tpl');
+            return $panel;
+        }
+        return true;
+    }
+
+    private function processImportCSV()
+    {
+        $importCSV = new MpStockAdminImportCSV($this->module);
+        $result = $importCSV->import();
+        return Tools::displayError("result: ".print_r($result,1));
+        $errors = $importCSV->getImportErrors();
         if ($errors) {
             $smarty = Context::getContext()->smarty;
             $smarty->assign(
@@ -871,7 +837,7 @@ class AdminMpStockController extends ModuleAdminController
                 $result,
                 array(
                     'id_feature_value' => 0,
-                    'name' => $this-l('Select a feature value'),
+                    'name' => $this->module->l('Select a feature value', get_class($this)),
                 )
             );
             return array();
@@ -924,7 +890,7 @@ class AdminMpStockController extends ModuleAdminController
                     $output['reference'] = $this->getReferenceProduct($id_product);
                     $output['employee'] = $this->getEmployeeName($id_employee, $id_stock);
                     $output['name'] = $this->getAttributeProduct($id_product_attribute, $id_product, $id_stock);
-                    $output['image_url'] = MpTools::getImageProduct($id_product);
+                    $output['image_url'] = MpStockTools::getImageProduct($id_product);
                     $output['type'] = $this->getTypemovement($row['id_mp_stock_type_movement']);
                     if ($row['qty']>0) {
                         $output['qty'] = '<i class="icon-arrow-right" style="color: #1fc62d;"></i> <strong>'. abs($row['qty']) . '</strong>';
@@ -1309,7 +1275,7 @@ class AdminMpStockController extends ModuleAdminController
             print Tools::jsonEncode(
                 array(
                     'result' => false,
-                    'error_msg' => $this-l('movement type not valid.'),
+                    'error_msg' => $this->module->l('movement type not valid.', get_class($this)),
                 )
             );
             exit();

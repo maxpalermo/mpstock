@@ -27,7 +27,7 @@
 require_once _PS_MODULE_DIR_.'mpstock/classes/MpStockImportObjectModel.php';
 require_once _PS_MODULE_DIR_.'mpstock/classes/MpStockObjectModel.php';
 
-Class MpStockAdminImportXML
+Class MpStockAdminImportCSV
 {
     protected $context;
     protected $id_lang;
@@ -45,6 +45,7 @@ Class MpStockAdminImportXML
     protected $mpStockImport;
     protected $importErrors = array();
     protected $id_mp_stock_type_movement;
+    private $columns_header;
 
 
     public function __construct($module)
@@ -73,19 +74,65 @@ Class MpStockAdminImportXML
         $filename = Tools::strtolower($file_upload['name']);
         /** Get file content **/
         $content = $file_upload['content'];
-        /** Get XML **/
-        $xml = simplexml_load_string($content);
+        /** Split in rows  **/
+        $rows = explode(PHP_EOL, $content);
+        if (!$rows) {
+            $this->importErrors[] = $this->module->l('No rows to parse, please check your CSV format.', get_class($this));
+            return false;
+        }
+        /** Get header */
+        $header = array_shift($rows);
+        /** Get columns **/
+        $this->columns_header = explode(';',Tools::strtolower($header));
+        if (!$this->columns_header) {
+            $this->importErrors[] = $this->module->l('No columns to parse, please check your CSV format.', get_class($this));
+            return false;
+        }
+        foreach ($this->columns_header as &$col) {
+            $col = trim(Tools::strtolower($col));
+        }
+        /** Check if there are all columns **/
+        $headers = array(
+            'movement_type',
+            'movement_date',
+            'ean13',
+            'reference',
+            'qty',
+            'price',
+            'wholesale_price',
+        );
+        if (array_diff($headers, $this->columns_header)) {
+            $this->importErrors[] = $this->module->l('Columns headers do not match, please check your CSV format.', get_class($this));
+            return false;
+        }
+        /** Prepare document */
+        $document = array();
+        foreach ($rows as $row) {
+            $columns = explode(';', $row);
+            $output_row = array();
+            foreach ($columns as $key=>$value) {
+                $output_row[$this->columns_header[$key]] = $value; 
+            }
+            $document[] = $output_row;
+        }
+        /** Import document **/
+        /** Get movement from first row **/
+        $row = $document[0];
         /** Get date movement **/
-        $date_movement = $date = (string)$xml->movement_date;
+        if (!isset($row['movement_date'])) {
+            return false;
+        }
+        $date_movement = (string)$row['movement_date'];
         /** Get type movement **/
-        $type_movement = (int)((string)$xml->movement_type);
-        /** Get movement **/
+        if (!isset($row['movement_type'])) {
+            return false;
+        }
+        $type_movement = (int)$row['movement_type'];
         $movement = new MpStockTypeMovementObjectModel($type_movement);
-        /** Check type movement **/
-        if (!$movement->record_exists) {
+        if (!$movement->id) {
             $this->importErrors[] = sprintf(
-                $this->module->l('Invalid document type: %d', get_class($this)),
-                $type_movement
+            $this->module->l('Invalid document type: %d', get_class($this)),
+            $type_movement
             );
             Context::getContext()->controller->addError(
                 sprintf(
@@ -98,99 +145,39 @@ Class MpStockAdminImportXML
         /** Set id type movement */
         $this->id_mp_stock_type_movement = $type_movement;
         /** Get sign **/
-        $sign = (string)$movement->sign;
+        $sign = (int)$movement->sign;
         /** Insert file name in archive **/
         $this->insertMpStockImport($filename, $type_movement, $date_movement, $sign);
-        if ($this->mpStockImport->id) {
-            /** Get rows informations **/
-            $result = $this->parseRows($xml->rows);
-            if ($result) {
-                /** Insert rows in archive **/
-                $result = $this->insertRows();
-                if ($result) {
-                    Context::getContext()->controller->addConfirmation(
-                        sprintf(
-                            $this->module->l('File %s imported successfully', get_class($this)),
-                            $file_upload['name']
-                        )
-                    );
-                    return true;
-                } else {
-                    $this->importErrors[] = $this->module->l('Error inserting products', get_class($this));
-                    return false;
-                }
-            } else {
-                $this->importErrors[] = $this->module->l('Error parsing products', get_class($this));
-                return false;
+
+        foreach ($document as $row) {
+            /** Get ean13 **/
+            if (!isset($row['ean13'])) {
+                continue;
             }
-        } else {
-            $this->importErrors[] = $this->module->l('Errors during import.', get_class($this));
-            return false;
-        }
-    }
-    
-    private function insertRows()
-    {
-        $flag_error = false;
-        foreach ($this->rows as $row) {
-            $stock = new MpStockObjectModel($this->module);
-            $stock->id_mp_stock_import = (int)$this->mpStockImport->id;
-            $stock->id_mp_stock_type_movement = $this->id_mp_stock_type_movement;
-            $stock->id_mp_stock_exchange = 0;
-            $stock->id_product = $row['id_product'];
-            $stock->id_product_attribute = $row['id_product_attribute'];
-            $stock->qty = $row['qty'];
-            $stock->price = $row['price'];
-            $stock->wholesale_price = $row['wholesale_price'];
-            $stock->tax_rate = $row['tax_rate'];
-            $stock->name = $row['name'];
-            $stock->id_lang = $this->id_lang;
-            $stock->id_shop = $this->id_shop;
-            $stock->id_employee = $this->id_employee;
-            $stock->date_movement = $this->mpStockImport->date_movement;
-            $stock->sign = $this->mpStockImport->sign;
-            $stock->date_add = date('Y-m-d H:i:s');
-            try {
-                $result = $stock->save();
-                if (!$result) {
-                    $this->importErrors[] = sprintf(
-                        $this->module->l('Error %s saving product (%d) %s.', get_class($this)),
-                        Db::getInstance()->getMsgError(),
-                        $row['id_product_attribute'],
-                        $row['name']
-                    );  
-                    $flag_error = true;  
-                }
-            } catch (Exception $ex) {
-                $this->importErrors[] = sprintf(
-                    $this->module->l('Error %s during import of product %s.', get_class($this)),
-                    $ex->getMessage(),
-                    $stock->name
-                );
-                $flag_error = true;
+            $ean13 = (string)$row['ean13'];
+            /** Get reference **/
+            if (!isset($row['reference'])) {
+                continue;
             }
-        }
-        if ($flag_error) {
-            $this->importErrors[] = $this->module->l('MpStockObjectModel error inserting product.', get_class($this));
-            return false;
-        } else {
-            return true;
-        }
-    }
-    
-    private function parseRows(SimpleXMLElement $rows)
-    {
-        /** Prepare array insertion **/
-        $output = array();
-        /** Parse rows **/
-        foreach ($rows->children() as $row) {
-            $ean13 = trim((string)$row->ean13);
-            $reference= trim((string)$row->reference);
-            $qty = (int)(((string)$row->qty) * (int)$this->mpStockImport->sign);
-            $date_movement = $this->mpStockImport->date_add;
-            $price = (float)((string)$row->price);
-            $wholesale_price = (float)((string)$row->wholesale_price);
+            $reference = (string)$row['reference'];
+            /** Get quantity */
+            if (!isset($row['qty'])) {
+                continue;
+            }
+            $qty = abs((int)$row['qty']);
+            /** get Price **/
+            if (!isset($row['price'])) {
+                continue;
+            }
+            $price = (float)$row['price'];
+            /** get Wholesale price **/
+            if (!isset($row['wholesale_price'])) {
+                continue;
+            }
+            $wholesale_price = (float)$row['wholesale_price'];
+            /** Get Extra info **/
             $extra_info = $this->getExtraInfo($ean13, $reference);
+            /** Create product array */
             $product = array(
                 'ean13' => $ean13,
                 'reference' => $reference,
@@ -203,12 +190,64 @@ Class MpStockAdminImportXML
                 'price' => (float)$price,
                 'wholesale_price' => (float)$wholesale_price,
             );
-            $output[] = $product;
-            $this->importErrors[] = "product:" . print_r($product, 1);
-            $this->importErrors[] = "extra info:" . print_r($extra_info, 1);
+            /** Insert Row **/
+            $this->insertRow($product);
         }
-        $this->rows = $output;
-        return true;
+        if ($this->importErrors) {
+            $this->importErrors[] = $this->module->l('Errors during import.', get_class($this));
+            return false;
+        } else {
+            return true;
+        }
+    }
+    
+    private function insertRow($row)
+    {
+        $flag_error = false;
+        /** Get Object Model **/
+        $stock = new MpStockObjectModel($this->module);
+        $stock->id_mp_stock_import = (int)$this->mpStockImport->id;
+        $stock->id_mp_stock_type_movement = $this->id_mp_stock_type_movement;
+        $stock->id_mp_stock_exchange = 0;
+        $stock->id_product = $row['id_product'];
+        $stock->id_product_attribute = $row['id_product_attribute'];
+        $stock->qty = $row['qty'];
+        $stock->price = $row['price'];
+        $stock->wholesale_price = $row['wholesale_price'];
+        $stock->tax_rate = $row['tax_rate'];
+        $stock->name = $row['name'];
+        $stock->id_lang = $this->id_lang;
+        $stock->id_shop = $this->id_shop;
+        $stock->id_employee = $this->id_employee;
+        $stock->date_movement = $this->mpStockImport->date_movement;
+        $stock->sign = $this->mpStockImport->sign;
+        $stock->date_add = date('Y-m-d H:i:s');
+        try {
+            $result = $stock->save();
+            if (!$result) {
+                $this->importErrors[] = sprintf(
+                    $this->module->l('Error %s saving product (%d) %s.', get_class($this)),
+                    Db::getInstance()->getMsgError(),
+                    $row['id_product_attribute'],
+                    $row['name']
+                );  
+                $flag_error = true;  
+            }
+        } catch (Exception $ex) {
+            $this->importErrors[] = sprintf(
+                $this->module->l('Error %s during import of product %s.', get_class($this)),
+                $ex->getMessage(),
+                $stock->name
+            );
+            $flag_error = true;
+        }
+
+        if ($flag_error) {
+            $this->importErrors[] = $this->module->l('MpStockObjectModel error inserting product.', get_class($this));
+            return false;
+        } else {
+            return true;
+        }
     }
     
     private function getExtraInfo($ean13, $reference)

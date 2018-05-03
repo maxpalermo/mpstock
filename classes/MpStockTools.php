@@ -163,6 +163,22 @@ Class MpStockTools
         );
         return Context::getContext()->smarty->fetch($templatePath.'html_element_button.tpl');
     }
+
+    public static function getHtmlLinkButton($name, $icon, $href='javascript:void(0);', $color='', $title='', $templatePath='')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        
+        Context::getContext()->smarty->assign(
+            array(
+                'name' => $name,
+                'icon' => $icon,
+                'color' => $color,
+                'title' => $title,
+                'href'=> $href
+            )
+        );
+        return Context::getContext()->smarty->fetch($templatePath.'html_element_link_button.tpl');
+    }
     
     /**
      * Get HTML Template icon element

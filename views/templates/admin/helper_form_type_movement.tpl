@@ -22,4 +22,24 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<img src='{$image.source}' style='{if !empty($image.width)}width: $image.width; {/if}{if !empty($image.height)}height: $image.height;{/if} object-fit: content;'>
+
+<script type="text/javascript">
+    $(document).ready(function(){
+        $(window).load(function(){
+            $('label[for="input_sign_on"]').text('⊕').css(
+                {
+                    "font-size" : "1.8em",
+                    "font-weight" : "light",
+                    "font-family" : "FontAwesome",
+                    "color" : "white",
+                });
+            $('label[for="input_sign_off"]').text('⊝').css(
+                {
+                    "font-size" : "1.8em",
+                    "font-weight" : "light",
+                    "font-family" : "FontAwesome",
+                    "color" : "white"
+                });
+        });
+    });
+</script>

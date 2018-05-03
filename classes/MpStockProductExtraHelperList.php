@@ -114,7 +114,7 @@ Class MpStockProductExtraHelperList extends HelperListCore
         MpStockTools::addText(
             $list,
             $this->module->l('Id', get_class($this)),
-            'id_mp_stock',
+            'id',
             48,
             'text-right'
         );
@@ -134,13 +134,6 @@ Class MpStockProductExtraHelperList extends HelperListCore
         );
         MpStockTools::addText(
             $list,
-            $this->module->l('Filename', get_class($this)),
-            'filename',
-            'auto',
-            'text-left'
-        );
-        MpStockTools::addText(
-            $list,
             $this->module->l('Reference', get_class($this)),
             'reference',
             'auto',
@@ -149,7 +142,7 @@ Class MpStockProductExtraHelperList extends HelperListCore
         MpStockTools::addText(
             $list,
             $this->module->l('Name', get_class($this)),
-            'name',
+            'comb_name',
             'auto',
             'text-left'
         );
@@ -189,19 +182,12 @@ Class MpStockProductExtraHelperList extends HelperListCore
             'text-center',
             true
         );
-        MpStockTools::addText(
+        MpStockTools::addHtml(
             $list,
             $this->module->l('Customer', get_class($this)),
             'customer',
             'auto',
             'text-left'
-        );
-        MpStockTools::addHtml(
-            $list,
-            $this->module->l('Action', get_class($this)),
-            'action',
-            96,
-            'text-center'
         );
         
         return $list;
@@ -358,11 +344,12 @@ Class MpStockProductExtraHelperList extends HelperListCore
                 if ($row['tablename']=='movements') {
                     $row['movement'] = $this->getMovementType($row['id']);
                     $row['reference'] = $this->getReference($row['id']);
-                    $row['name'] = $this->getName($row['id']);
+                    $row['comb_name'] = $this->getName($row['id']);
                     $row['customer'] = $this->getCustomerName($row['id_customer'], true);
                 } else {
-                    $row['movement'] = Tools::strtoupper($row['tablename']);
+                    $row['movement'] = $this->getMovementTable($row['tablename']);
                     $row['customer'] = $this->getCustomerName($row['id_customer'], false);
+                    $row['comb_name'] = MpStockTools::getProductCombinationName($row['id_product_attribute']);
                 }
                 $row['action'] = MpStockTools::getHtmlButtonCallBack(
                     '',
@@ -373,25 +360,36 @@ Class MpStockProductExtraHelperList extends HelperListCore
                 );
             }
         }
-        
         return $result;
     }
     
+    public function getMovementTable($tablename)
+    {
+        switch($tablename) {
+            case 'orders':
+                return $this->module->l('Orders', get_class($this));
+            case 'order_slip':
+                return $this->module->l('Order Slip', get_class($this));
+        }
+    }
+
     public function getCustomerName($id_customer, $isEmplpoyee)
     {
         if ($isEmplpoyee) {
             $class = new EmployeeCore($id_customer);
+            $icon = MpStockTools::getHtmlIcon('','icon-user', '#7070BB');
         } else {
             $class = new CustomerCore($id_customer);
+            $icon = '';
         }
         
-        return MpStockTools::ucFirst($class->firstname . ' ' . $class->lastname);
+        return $icon.MpStockTools::ucFirst($class->firstname . ' ' . $class->lastname);
     }
     
     public function getName($id_movement)
     {
         $movement = new MpStockObjectModel($this->module, $id_movement);
-        return $movement->name;
+        return $movement->getName();
     }
     
     public function getReference($id_movement)

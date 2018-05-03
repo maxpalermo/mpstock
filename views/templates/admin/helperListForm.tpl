@@ -38,11 +38,6 @@
                         <i class='icon-bar-chart' style='color: #46a546;'></i>
                 </span>
             </a>
-            <a id="btn-print" class="list-toolbar-btn" href="javascript:void(0);" onclick='$("#div-date-between").toggle();'>
-                <span title="" data-toggle="tooltip" class="label-tooltip" data-original-title="{l s='Print report' mod='mpstock'}" data-html="true" data-placement="top">
-                        <i class='icon-print' style='color: #f0ad4e;'></i>
-                </span>
-            </a>
             <a id="btn-csv" class="list-toolbar-btn" href="javascript:void(0);" onclick='exportCSV();'>
                 <span title="" data-toggle="tooltip" class="label-tooltip" data-original-title="{l s='Download CSV' mod='mpstock'}" data-html="true" data-placement="top">
                         <i class='icon-download-alt' style='color: #cdcdcd;'></i>

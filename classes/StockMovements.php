@@ -66,32 +66,12 @@ Class MpStockStockMovements
         $this->module = $module;
     }
     
-    public function getMovements()
-    {
-        $query = $this->prepareQuery();
-        $rows = $this->getRows($query);
-        $this->smarty->assign(
-            array(
-                'pagination' => $this->pagination,
-                'page' => $this->page,
-                'tot_rows' => $this->tot_rows,
-                'tot_pages' => $this->tot_pages,
-                'rows' => $rows,
-                'debug' => false,
-                'query' => $this->query,
-            )
-        );
-        $table = $this->smarty->fetch($this->module->getPath().'views/templates/admin/ProductExtraTableMovements.tpl');
-        return $table;
-    }
-    
     public function getRows($sql)
     {
         $result = $this->db->executeS($sql);
         if ($result) {
             return $this->prepareRows($result);
         } else {
-            //$this->module->_errors[] = $this->l('Error dgetting data');
             return array();
         }
     }
@@ -351,25 +331,5 @@ Class MpStockStockMovements
         }
         
         return $sql->__toString();
-    }
-    
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
-    {
-        if ($class === null || $class == 'AdminTab') {
-            $class = substr(get_class($this), 0, -10);
-        } elseif (strtolower(substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, so we remove 10 characters and we keep same keys */
-            $class = substr($class, 0, -10);
-        }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
 }

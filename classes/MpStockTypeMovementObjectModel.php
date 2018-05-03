@@ -24,18 +24,13 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockMovementObjectModel extends ObjectModelCore
+Class MpStockTypeMovementObjectModel extends ObjectModelCore
 {
     public static $definition = array(
         'table' => 'mp_stock_type_movement',
         'primary' => 'id_mp_stock_type_movement',
         'multilang' => false,
         'fields' => array(
-            'id_mp_stock_type_movement' => array(
-                'type' => self::TYPE_INT,
-                'validate' => 'isUnsignedId',
-                'required' => 'true',
-            ),
             'id_lang' => array(
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedId',
@@ -64,13 +59,24 @@ Class MpStockMovementObjectModel extends ObjectModelCore
         ),
     );
     
+    /** @var int $id_mp_stock_type_movement **/
     public $id_mp_stock_type_movement;
+    /** @var int $id_lang **/
     public $id_lang;
+    /** @var int $id_shop **/
     public $id_shop;
+    /** @var string $name **/
     public $name;
+    /** @var int $sign **/
     public $sign;
+    /** @var int $exchange **/
     public $exchange;
+    /** @var boolen $record_exists **/
     public $record_exists;
+    /** @var array errors Error Messages **/
+    private $errors;
+    /** @var MpStock module MpStock Module*/
+    private $module;
     
     public function __construct($id = null, $id_lang = null, $id_shop = null) {
         if (!$id_lang) {
@@ -79,6 +85,8 @@ Class MpStockMovementObjectModel extends ObjectModelCore
         if (!$id_shop) {
             $this->id_shop = (int)ContextCore::getContext()->shop->id;
         }
+        $this->sign = 1;
+        $this->exchange = 0;
         parent::__construct($id, $id_lang, $id_shop);
         $db = Db::getInstance();
         $sql = new DbQueryCore();
@@ -86,8 +94,55 @@ Class MpStockMovementObjectModel extends ObjectModelCore
             ->from('mp_stock_type_movement')
             ->where('id_mp_stock_type_movement='.(int)$this->id);
         $this->record_exists = (bool)$db->getValue($sql);
+        $this->errors = array();
+        $this->module = new mpstock();
     }
     
+    public function delete()
+    {
+        /** check if there are movements with this type **/
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('count(*)')
+            ->from('mp_stock')
+            ->where('id_mp_stock_type_movement='.(int)$this->id);
+        $result = (int)$db->getValue($sql);
+        if ($result) {
+            $this->errors[] = sprintf(
+                $this->module->l('Unable to delete this movement type.', get_class($this))
+                .$this->module->l('There are still %d stock movement(s) associated.', get_class($this)),
+                $result
+            );
+            return false;
+        }
+        return parent::delete();
+    }
+
+    public function getErrorMessage()
+    {
+        return implode(PHP_EOL, $this->errors);
+    }
+
+    public static function exists($id)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('count(*)')
+            ->from('mp_stock_type_movement')
+            ->where('id_mp_stock_type_movement='.(int)$id);
+        return (bool)$db->getValue($sql);
+    }
+
+    public function getArrayValues()
+    {
+        return array(
+            'input_id_mp_stock_type_movement' => (int)$this->id_mp_stock_type_movement,
+            'input_name' => $this->name,
+            'input_sign' => (int)$this->sign,
+            'input_exchange' => (int)$this->exchange,
+        );
+    }
+
     public function getListMovements()
     {
         $db = Db::getInstance();
@@ -95,7 +150,7 @@ Class MpStockMovementObjectModel extends ObjectModelCore
         $sql->select('*')
             ->from('mp_stock_type_movement')
             ->where('id_shop='.(int)$this->id_shop)
-            ->orderBy('id_lang')
+            ->where('id_lang='.(int)$this->id_lang)
             ->orderBy('name');
         $result = $db->executeS($sql);
         $output = array();
@@ -109,8 +164,10 @@ Class MpStockMovementObjectModel extends ObjectModelCore
                     'name' => $row['name'],
                     'sign' => $this->addSign($row['sign']),
                     'check' => $this->addCheckBox('checkSelect[]', $id),
-                    'flag' => $this->getFlag((int)$row['id_lang']),
-                    'actions' => $this->addActions($id),
+                    'flag' => $this->addFlag((int)$row['id_lang']),
+                    'actions' => 
+                        MpStockTools::getHtmlLinkButton('editMovement[]', 'icon icon-pencil', 'javascript:void(0);', '#3030AA')
+                    .   MpStockTools::getHtmlLinkButton('deleteMovement[]', 'icon icon-times', 'javascript:void(0);', '#BB4040'),
                     'exchange' => $this->addExchange($row['exchange']),
                 );
                 $output[] = $line;
@@ -123,34 +180,69 @@ Class MpStockMovementObjectModel extends ObjectModelCore
     
     public function addCheckBox($name, $value)
     {
-        return "<input type='checkbox' name='" . $name . "[]' value='" . $value . "'>"; 
+        $template = $this->module->getAdminTemplatePath().'html_element_icon.tpl';
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name.$value,
+                'icon' => 'icon-caret-right',
+                'color' => '#7070BB',
+                'title' => ''
+            )
+        );
+
+        return $smarty->fetch($template);
     } 
     
     public function addSign($sign)
     {
-        if ((int)$sign>0) {
-            $icon = 'icon-plus';
-            $color = '#629bbc;';
-        } elseif((int)$sign<0) {
-            $icon = 'icon-minus';
-            $color = '#629bbc;';
-        } else {
-            $icon = 'icon-times';
-            $color = '#db5e5e;';
-        }
-         return '<i class="' . $icon . '" style="color: ' . $color . '"></i>';
+        $template = $this->module->getAdminTemplatePath().'html_element_icon.tpl';
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => '',
+                'icon' => (int)$sign>0?'icon-plus-circle':'icon-minus-circle',
+                'color' => (int)$sign>0?'#db5e5e':'#629bbc',
+                'title' => ''
+            )
+        );
+
+        return $smarty->fetch($template);
+    }
+
+    public function addFlag($id_lang) {
+        $shop = new ShopCore((int)$this->id_shop);
+        $lang = new LanguageCore((int)$id_lang);
+        $path =  $shop->physical_uri . 'img/l/' . $id_lang . '.jpg';
+        $template = $this->module->getAdminTemplatePath().'html_element_img.tpl';
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'image' => array(
+                    'source' => $path,
+                    'width' => 0,
+                    'height' => 0,
+                ),
+            )
+        );
+
+        return $smarty->fetch($template);
     }
     
     public function addExchange($exchange)
     {
-        if ((int)$exchange) {
-            $icon = 'icon-flag';
-            $color = '#79e081;';
-        } else {
-            $icon = 'icon-times';
-            $color = '#db5e5e;';
-        }
-         return '<i class="' . $icon . '" style="color: ' . $color . '"></i>';
+        $template = $this->module->getAdminTemplatePath().'html_element_icon.tpl';
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => '',
+                'icon' => (int)$exchange>0?'icon-check':'',
+                'color' => (int)$exchange>0?'#70BB70':'',
+                'title' => ''
+            )
+        );
+
+        return $smarty->fetch($template);
     }
     
     public function addActions($id_movement)
@@ -160,7 +252,7 @@ Class MpStockMovementObjectModel extends ObjectModelCore
         $buttons = array(
             'edit' => array(
                 'name' => 'btn-edit-movement[]',
-                'title' => $this->l('Edit'),
+                'title' => $this->module->l('Edit', get_class($this)),
                 'icon' => 'icon-edit',
                 'color' => '#79e081',
                 'href' => $url . '&editMovement=' . $id_movement,
@@ -169,7 +261,7 @@ Class MpStockMovementObjectModel extends ObjectModelCore
             ),
             'delete' => array(
                 'name' => 'btn-delete-movement[]',
-                'title' => $this->l('Delete'),
+                'title' => $this->module->l('Delete', get_class($this)),
                 'icon' => 'icon-times',
                 'color' => '#db5e5e',
                 'href' => $url . '&deleteMovement=' . $id_movement,
@@ -196,37 +288,8 @@ Class MpStockMovementObjectModel extends ObjectModelCore
         return implode('', $output);
     }
     
-    public function getFlag($id_lang) {
-        $shop = new ShopCore((int)$this->id_shop);
-        $lang = new LanguageCore((int)$id_lang);
-        $path =  $shop->physical_uri . 'img/l/' . $id_lang . '.jpg';
-        $img = '<img alt="'. $lang->name[(int)$id_lang] . '" src="' . $path . '">';
-        return $img;
-    }
-    
     public function save($null_values = false, $auto_date = true) {
         $this->id_mpstock_type_movement = $this->id;
         return parent::save($null_values, $auto_date);
-    }
-    
-    /**
-     * Non-static method which uses AdminController::translate()
-     *
-     * @param string  $string Term or expression in english
-     * @param string|null $class Name of the class
-     * @param bool $addslashes If set to true, the return value will pass through addslashes(). Otherwise, stripslashes().
-     * @param bool $htmlentities If set to true(default), the return value will pass through htmlentities($string, ENT_QUOTES, 'utf-8')
-     * @return string The translation if available, or the english default text.
-     */
-    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
-    {
-        if ($class === null || $class == 'AdminTab') {
-            $class = Tools::substr(get_class($this), 0, -10);
-        } elseif (Tools::strtolower(Tools::substr($class, -10)) == 'controller') {
-            /* classname has changed, from AdminXXX to AdminXXXController, 
-             * so we remove 10 characters and we keep same keys */
-            $class = Tools::substr($class, 0, -10);
-        }
-        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
 }

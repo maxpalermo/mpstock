@@ -34,6 +34,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
     public $context;
     public $values;
     public $id_lang;
+    public $id_shop;
     public $module;
     public $link;
     protected $cookie;
@@ -48,6 +49,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $this->link = new LinkCore();
         $this->values = array();
         $this->id_lang = (int)$this->context->language->id;
+        $this->id_shop = (int)$this->context->shop->id;
         parent::__construct();
         $this->cookie = Context::getContext()->cookie;
         $this->localeInfo = MpStockTools::getLocaleInfo();
@@ -58,11 +60,10 @@ Class MpStockAdminHelperListMovements extends HelperListCore
     {
         $this->bootstrap = true;
         $this->actions = array();
-        $this->currentIndex = $this->context->link->getAdminLink($this->className, false)
-            .'&id_mp_stock_import='.(int)$id_mp_stock_import
-            .'&updatemp_stock_import';
-        $this->identifier = 'id_mp_stock';
-        $this->no_link = true;
+        $this->currentIndex = $this->context->link->getAdminLink('AdminProducts', false)
+            .'&updateproduct';
+        $this->identifier = 'id_product';
+        $this->no_link = false;
         $this->page = Tools::getValue('submitFilterconfiguration', 1);
         $this->_default_pagination = Tools::getValue('configuration_pagination', 20);
         $this->show_toolbar = true;
@@ -86,7 +87,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         );
         $this->shopLinkType='';
         $this->simple_header = false;
-        $this->token = Tools::getAdminTokenLite($this->className);
+        $this->token = Tools::getAdminTokenLite('AdminProducts');
         $this->title = $this->module->l('Movements found', get_class($this));
         $this->table = 'mp_stock';
 
@@ -260,6 +261,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             ->innerJoin('product_lang', 'pl', 'pl.id_product=s.id_product')
             ->leftJoin('employee', 'e', 's.id_employee=e.id_employee')
             ->where('pl.id_lang='.(int)$this->id_lang)
+            ->where('pl.id_shop='.(int)$this->id_shop)
             ->orderBy('s.id_mp_stock DESC')
             ->orderBy('s.date_movement DESC');
 
