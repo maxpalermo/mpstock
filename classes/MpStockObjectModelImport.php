@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockImportObjectModel extends ObjectModelCore
+class MpStockObjectModelImport extends ObjectModelCore
 {
     public static $definition = array(
         'table' => 'mp_stock_import',
@@ -88,7 +88,8 @@ Class MpStockImportObjectModel extends ObjectModelCore
      /**@var date date creation **/
     public $date_add;
     
-    public function __construct($id = null, $id_lang = null, $id_shop = null) {
+    public function __construct($id = null, $id_lang = null, $id_shop = null)
+    {
         if (!$id_lang) {
             $this->id_lang = (int)ContextCore::getContext()->language->id;
         }
@@ -96,5 +97,33 @@ Class MpStockImportObjectModel extends ObjectModelCore
             $this->id_shop = (int)ContextCore::getContext()->shop->id;
         }
         parent::__construct($id, $id_lang, $id_shop);
+    }
+
+    public function getIdMovements()
+    {
+        $db = Db::getInstance();
+        $sql = "select id_mp_stock from "._DB_PREFIX_."mp_stock where id_mp_stock_import=".(int)$this->id;
+        $result = $db->executeS($sql);
+        $output = array();
+        foreach ($result as $row) {
+            $output[] = (int)$row['id_mp_stock'];
+        }
+        return $output;
+    }
+
+    public function getObjectMovements()
+    {
+        $id_movements = $this->getIdMovements();
+        $output = array();
+        foreach ($id_movements as $id) {
+            $object = new MpStockObjectModel((int)$id);
+            $output[] = $object;
+        }
+        return $output;
+    }
+
+    public function delete()
+    {
+        return parent::delete();
     }
 }

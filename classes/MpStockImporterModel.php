@@ -18,27 +18,19 @@
 * versions in the future. If you wish to customize PrestaShop for your
 * needs please refer to http://www.prestashop.com for more information.
 *
-*  @author    PrestaShop SA <contact@prestashop.com>
-*  @copyright 2007-2018 PrestaShop SA
+*  @author    Massimiliano Palermo <info@mpsoft.it>
+*  @copyright 2007-2018 Digital Solutions®
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-if (!defined('_PS_VERSION_')) {
-    exit;
-}
-
-/**
- * This function updates your module from previous versions to the version 1.1,
- * usefull when you modify your database, or register a new hook ...
- * Don't forget to create one file per version.
- */
-function upgrade_module_1_1_0($module)
+Class MpStockImporterModel
 {
-    /**
-     * Do everything you want right there,
-     * You could add a column in one of your module's tables
-     */
+    public $movement_type;
+    public $movement_date;
 
-    return true;
+
+    public abstract function parse();
+    public abstract function prepare();
+    public abstract function insert();
 }

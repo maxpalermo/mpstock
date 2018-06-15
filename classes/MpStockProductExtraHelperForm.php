@@ -24,12 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-/**
- * TODO CLICK ON ROW
- * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
- */
-
-Class MpStockProductExtraHelperForm extends HelperFormCore
+class MpStockProductExtraHelperForm extends HelperFormCore
 {
     public $context;
     public $values;
@@ -78,9 +73,15 @@ Class MpStockProductExtraHelperForm extends HelperFormCore
             'fields_value' => $this->getFieldsValue(),
             'languages' => $this->context->controller->getLanguages(),
         );
-        return $this->generateForm($this->getFieldsForm());
+        return $this->generateForm($this->getFieldsForm()).$this->getScript();
     }
     
+    private function getScript()
+    {
+        $smarty = Context::getContext()->smarty;
+        return $smarty->fetch($this->module->getPath().'views/templates/front/extra_form.tpl');
+    }
+
     private function getFieldsValue()
     {
         return array(
@@ -194,7 +195,7 @@ Class MpStockProductExtraHelperForm extends HelperFormCore
                     'icon' => 'process-icon-flag',
                 ),
             )
-        );   
+        );
         return (array($fields_form));
     }
     

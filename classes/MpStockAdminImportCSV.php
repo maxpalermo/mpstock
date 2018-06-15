@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-require_once _PS_MODULE_DIR_.'mpstock/classes/MpStockImportObjectModel.php';
+require_once _PS_MODULE_DIR_.'mpstock/classes/MpStockObjectModelImport.php';
 require_once _PS_MODULE_DIR_.'mpstock/classes/MpStockObjectModel.php';
 
 Class MpStockAdminImportCSV
@@ -57,7 +57,7 @@ Class MpStockAdminImportCSV
         $this->id_shop = (int)Context::getContext()->shop->id;
         $this->id_employee = (int)Context::getContext()->employee->id;        
         $this->cookie = Context::getContext()->cookie;
-        $this->mpStockImport = new MpStockImportObjectModel();
+        $this->mpStockImport = new MpStockObjectModelImport();
         $this->localeInfo = MpStockTools::getLocaleInfo();
     }
     
@@ -128,7 +128,7 @@ Class MpStockAdminImportCSV
             return false;
         }
         $type_movement = (int)$row['movement_type'];
-        $movement = new MpStockTypeMovementObjectModel($type_movement);
+        $movement = new MpStockObjectModelTypeMovement($type_movement);
         if (!$movement->id) {
             $this->importErrors[] = sprintf(
             $this->module->l('Invalid document type: %d', get_class($this)),
@@ -308,7 +308,7 @@ Class MpStockAdminImportCSV
     private function insertMpStockImport($filename, $type_movement, $date_movement, $sign)
     {
         /** create object **/
-        $this->mpStockImport = new MpStockImportObjectModel();
+        $this->mpStockImport = new MpStockObjectModelImport();
         $this->mpStockImport->id_type_document = (int)$type_movement;
         $this->mpStockImport->sign = (int)$sign;
         $this->mpStockImport->filename = $filename;

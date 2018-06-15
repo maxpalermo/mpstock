@@ -72,6 +72,9 @@ Class MpStockProductExtraHelperList extends HelperListCore
     
     public function display($id_mp_stock_import = 0)
     {
+        if($id_mp_stock_import) {
+            /** For future use **/
+        }
         $this->id_product = (int)Tools::getValue('id_product', 0);
         $this->bootstrap = true;
         $this->actions = array();
@@ -141,6 +144,13 @@ Class MpStockProductExtraHelperList extends HelperListCore
         );
         MpStockTools::addText(
             $list,
+            $this->module->l('Order', get_class($this)),
+            'order_reference',
+            'auto',
+            'text-left'
+        );
+        MpStockTools::addText(
+            $list,
             $this->module->l('Name', get_class($this)),
             'comb_name',
             'auto',
@@ -165,6 +175,13 @@ Class MpStockProductExtraHelperList extends HelperListCore
             $this->module->l('Tax rate', get_class($this)),
             'tax_rate',
             'auto',
+            'text-right'
+        );
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Snap', get_class($this)),
+            'snap',
+            48,
             'text-right'
         );
         MpStockTools::addHtml(
@@ -195,8 +212,9 @@ Class MpStockProductExtraHelperList extends HelperListCore
     
     private function getList($id_product = 0)
     {
-        $submit = 'submitFilter';
-        $current_page_field = $submit.$this->table_name;
+        if ($id_product) {
+            /** For future use  **/
+        }
         $date_start = '';
         $date_end = '';
         $search_in_orders = (int)ConfigurationCore::get('MP_STOCK_SEARCH_IN_ORDERS');
@@ -230,6 +248,7 @@ Class MpStockProductExtraHelperList extends HelperListCore
                 ->select('\'orders\' as tablename' )
                 ->select('od.product_id as id_product')
                 ->select('od.product_attribute_id as id_product_attribute')
+                ->select('\'0\' as snap')
                 ->select('od.product_quantity as qty')
                 ->select('od.product_ean13 as ean13')
                 ->select('od.product_reference as reference')
@@ -266,6 +285,7 @@ Class MpStockProductExtraHelperList extends HelperListCore
                 ->select('\'slips\' as tablename' )
                 ->select('od.product_id as id_product')
                 ->select('od.product_attribute_id as id_product_attribute')
+                ->select('\'0\' as snap')
                 ->select('osd.product_quantity as qty')
                 ->select('\'\' as ean13')
                 ->select('\'\' as reference')
@@ -301,6 +321,7 @@ Class MpStockProductExtraHelperList extends HelperListCore
                 ->select('\'movements\' as tablename')
                 ->select('st.id_product')
                 ->select('st.id_product_attribute')
+                ->select('st.snap')
                 ->select('st.qty')
                 ->select('\'\' as ean13')
                 ->select('\'\' as reference')
@@ -336,8 +357,12 @@ Class MpStockProductExtraHelperList extends HelperListCore
         if ($result) {
             foreach ($result as &$row) {
                 $row['image'] = MpStockTools::getImageProduct((int)$row['id_product']);
-                $row['tax_rate'] = $this->getTaxRateFromIdProduct((int)$row['id_product']);
-                $row['qty'] = MpStockTools::displayQuantity($row['qty']);
+                $row['tax_rate'] = number_format($this->getTaxRateFromIdProduct((int)$row['id_product']), 2)." %";
+                if ($row['tablename'] == 'movements') {
+                    $row['qty'] = MpStockTools::displayQuantity(MpStockTools::getQty($row['id']));    
+                } else {
+                    $row['qty'] = MpStockTools::displayQuantity($row['qty']);
+                }
                 $row['price'] = MpStockTools::displayPrice($row['price']);
                 $row['wholesale_price'] = MpStockTools::displayPrice($row['wholesale_price']);
                 $row['customer'] = $this->getCustomer($row['tablename'], $row['id_customer']);
@@ -418,6 +443,12 @@ Class MpStockProductExtraHelperList extends HelperListCore
     
     public function getCustomer($tablename, $id_customer)
     {
+        if ($tablename) {
+            /** For future use **/
+        }
+        if ($id_customer) {
+            /** For future use **/
+        }
         return 'customer --';
     }
     

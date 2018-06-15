@@ -29,16 +29,14 @@
         {l s='Error report' mod='mpstock'}
         &nbsp;
         <span class="badge">
-            {count($import_errors)}
+            {$content_total|escape:'htmlall':'UTF-8'}
         </span>
     </div>
     <div class="panel-body">
         <div class="row">
             <div class="col-md-12">
-                <textarea name="import_errors" id="import_errors" rows="20" readonly="readonly">
-                    {foreach $import_errors as $error}
-                        {$error}
-                    {/foreach}
+                <textarea name="import_errors" id="import_errors" rows="20">
+                    {$content_area|escape:'htmlall':'UTF-8'}
                 </textarea>
             </div>
         </div>

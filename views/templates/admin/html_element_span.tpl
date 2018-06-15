@@ -25,10 +25,10 @@
 <span {if isset($style)}
         style="
         {foreach $style as $key=>$val}
-            {$key} : {$val};
+            {$key|escape:'htmlall':'UTF-8'} : {$val|escape:'htmlall':'UTF-8'};
          {/foreach}
         "
     {/if}
     >
-    {$value}
+    {$value|escape:'htmlall':'UTF-8'}
 </span>

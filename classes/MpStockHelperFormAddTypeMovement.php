@@ -55,9 +55,9 @@ Class MpStockHelperFormAddTypeMovement extends HelperFormCore
     public function display()
     {
         if (Tools::isSubmit('editMovement', 0)) {
-            $movement = new MpStockTypeMovementObjectModel((int)Tools::getValue('editMovement', 0));
+            $movement = new MpStockObjectModelTypeMovement((int)Tools::getValue('editMovement', 0));
         } else {
-            $movement = new MpStockTypeMovementObjectModel();
+            $movement = new MpStockObjectModelTypeMovement();
         }
         $this->table = $this->table_name;
         $this->default_form_language = (int) ConfigurationCore::get('PS_LANG_DEFAULT');
@@ -73,17 +73,6 @@ Class MpStockHelperFormAddTypeMovement extends HelperFormCore
             'languages' => $this->context->controller->getLanguages(),
         );
         return $this->generateForm($this->getFieldsForm()).$this->addScript();
-    }
-    
-    private function getFieldsValue()
-    {
-        if (Tools::isSubmit('id_mp_stock_type_movement')) {
-            $movement = new MpStockMovementObjectModel((int)Tools::getValue('id_mp_stock_type_movement'));
-            $values = $movement->getArrayValues();
-        } else {
-            $movement = new MpStockMovementObjectModel();
-            $values = $movement->getArrayValues();
-        }
     }
     
     private function getFieldsForm()

@@ -24,12 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-/**
- * TODO CLICK ON ROW
- * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
- */
-
-Class MpStockAdminHelperListMovements extends HelperListCore
+class MpStockAdminHelperListMovements extends HelperListCore
 {
     public $context;
     public $values;
@@ -60,26 +55,15 @@ Class MpStockAdminHelperListMovements extends HelperListCore
     {
         $this->bootstrap = true;
         $this->actions = array();
-        $this->currentIndex = $this->context->link->getAdminLink('AdminProducts', false)
-            .'&updateproduct';
+        $this->currentIndex = $this->context->link->getAdminLink('AdminMpStock', false)
+            .'&id_mp_stock_import='.$id_mp_stock_import
+            .'&updatemp_stock_import';
         $this->identifier = 'id_product';
-        $this->no_link = false;
+        $this->no_link = true;
         $this->page = Tools::getValue('submitFilterconfiguration', 1);
         $this->_default_pagination = Tools::getValue('configuration_pagination', 20);
         $this->show_toolbar = true;
         $this->toolbar_btn = array(
-            'plus' => array(
-                'desc' => $this->module->l('Add new movement', get_class($this)),
-                'href' => $this->link->getAdminLink($this->className).'&addMovement',
-            ),
-            'upload' => array(
-                'desc' => $this->module->l('Import from XML', get_class($this)),
-                'href' => 'javascript:importXML();',
-            ),
-            'download' => array(
-                'desc' => $this->module->l('Export to XML', get_class($this)),
-                'href' => 'javascript:exportXML();',
-            ),
             'back' => array(
                 'desc' => $this->module->l('Back to documents', get_class($this)),
                 'href' => $this->link->getAdminLink($this->className),
@@ -87,7 +71,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         );
         $this->shopLinkType='';
         $this->simple_header = false;
-        $this->token = Tools::getAdminTokenLite('AdminProducts');
+        $this->token = Tools::getAdminTokenLite('AdminMpStock');
         $this->title = $this->module->l('Movements found', get_class($this));
         $this->table = 'mp_stock';
 
@@ -114,14 +98,14 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             $list,
             $this->module->l('Id', get_class($this)),
             'id_mp_stock',
-            48,
+            '48',
             'text-right'
         );
         MpStockTools::addHtml(
             $list,
             $this->module->l('Image', get_class($this)),
             'image',
-            48,
+            '48',
             'text-center'
         );
         MpStockTools::addText(
@@ -156,7 +140,7 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             $list,
             $this->module->l('Stock', get_class($this)),
             'stock',
-            48,
+            '48',
             'text-right'
         );
         MpStockTools::addPrice(
@@ -177,7 +161,14 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             $list,
             $this->module->l('Tax rate', get_class($this)),
             'tax_rate',
-            'auto',
+            '128',
+            'text-right'
+        );
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Snap', get_class($this)),
+            'snap',
+            '48',
             'text-right'
         );
         MpStockTools::addHtml(
@@ -245,8 +236,8 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             ->select('s.id_product_attribute')
             ->select('s.id_mp_stock_type_movement')
             ->select('pa.reference')
-            ->select('pa.quantity as stock')
             ->select('s.tax_rate')
+            ->select('s.snap')
             ->select('s.qty')
             ->select('s.date_movement')
             ->select('CONCAT(pl.name, \' - \', UPPER(s.name)) as `name`')
@@ -255,15 +246,26 @@ Class MpStockAdminHelperListMovements extends HelperListCore
             ->select('CONCAT(e.firstname, \' \', e.lastname) as employee')
             ->select('si.id_type_document')
             ->select('si.filename')
+            ->select('tm.name as movement')
             ->from('mp_stock', 's')
+            ->innerJoin('mp_stock_type_movement', 'tm', 'tm.id_mp_stock_type_movement=s.id_mp_stock_type_movement')
             ->leftJoin('mp_stock_import', 'si', 'si.id_mp_stock_import=s.id_mp_stock_import')
             ->innerJoin('product_attribute', 'pa', 'pa.id_product_attribute=s.id_product_attribute')
             ->innerJoin('product_lang', 'pl', 'pl.id_product=s.id_product')
             ->leftJoin('employee', 'e', 's.id_employee=e.id_employee')
             ->where('pl.id_lang='.(int)$this->id_lang)
-            ->where('pl.id_shop='.(int)$this->id_shop)
-            ->orderBy('s.id_mp_stock DESC')
-            ->orderBy('s.date_movement DESC');
+            ->where('pl.id_shop='.(int)$this->id_shop);
+        if (Tools::isSubmit('mp_stockOrderby') && Tools::getValue('mp_stockOrderby')!='action') {
+            $sql->orderBy(
+                Tools::getValue('mp_stockOrderby', 'id_mp_stock')
+                .' '
+                .Tools::getValue('mp_stockOrderway', 'desc')
+            );
+        } else {
+            $sql->orderBy('s.id_mp_stock DESC')
+                ->orderBy('s.date_movement DESC');
+        }
+            
 
         $sql_count = new DbQueryCore();
         $sql_count->select('count(*)')
@@ -299,20 +301,30 @@ Class MpStockAdminHelperListMovements extends HelperListCore
         $result = $db->executeS($sql);
 
         if ($result) {
-            $templatePath = $this->module->getAdminTemplatePath();
             foreach ($result as &$row) {
                 $row['image'] = MpStockTools::getImageProduct((int)$row['id_product']);
                 $row['tax_rate'] = MpStockTools::displayTaxRate($row['tax_rate']);
                 $row['qty'] = MpStockTools::displayQuantity($row['qty']);
-                $row['stock'] = MpStockTools::displayQuantity($row['stock']);
-                $row['action'] = MpStockTools::getHtmlButtonCallBack(
-                    '',
-                    'icon-times',
-                    'javascript:deleteMovement(this);',
-                    '#BB4040',
-                    $this->module->l('Delete')
+                $row['stock'] = MpStockTools::displayQuantity(
+                    MpStockTools::getAvailableStock($row['id_product_attribute'])
                 );
-                $row['movement'] = MpStockTools::getMovementName($row['id_mp_stock_type_movement']);
+                $row['action'] =
+                    MpStockTools::getHtmlButtonCallBack(
+                        '',
+                        'icon-times',
+                        'javascript:deleteMovement(this);',
+                        '#BB4040',
+                        ''
+                    ).
+                    MpStockTools::getHtmlLinkButton(
+                        '',
+                        'icon-file-text',
+                        $this->context->link->getAdminLink('AdminProducts')
+                        .'&updateproduct'
+                        .'&id_product='.$row['id_product'],
+                        '#4040BB',
+                        ''
+                    );
             }
         }
 

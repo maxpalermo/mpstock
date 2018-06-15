@@ -24,7 +24,12 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-class MpStockAdminHelperListAddMovement extends HelperListCore
+/**
+ * TODO CLICK ON ROW
+ * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
+ */
+
+Class MpStockAdminHelperListAddMovementExchange extends HelperListCore
 {
     public $context;
     public $values;
@@ -39,7 +44,7 @@ class MpStockAdminHelperListAddMovement extends HelperListCore
     protected $id_product;
     protected $name_product;
 
-    public function __construct($module)
+    public function __construct($module, $id = 0, $type_movement = 0)
     {
         $this->module = $module;
         $this->context = Context::getContext();
@@ -48,6 +53,8 @@ class MpStockAdminHelperListAddMovement extends HelperListCore
         $this->id_lang = (int)$this->context->language->id;
         $this->id_shop = (int)$this->context->shop->id;
         parent::__construct();
+        $this->id = $id;
+        $this->type_movement = $type_movement;
         $this->cookie = Context::getContext()->cookie;
         $this->localeInfo = MpStockTools::getLocaleInfo();
         $this->id_product = (int)Tools::getValue('id_product', 0);
@@ -63,20 +70,11 @@ class MpStockAdminHelperListAddMovement extends HelperListCore
         $this->no_link = true;
         $this->page = Tools::getValue('submitFilterconfiguration', 1);
         $this->_default_pagination = Tools::getValue('configuration_pagination', 20);
-        $this->show_toolbar = true;
-        $this->toolbar_btn = array(
-            'back' => array(
-                'desc' => $this->module->l('Back', get_class($this)),
-                'href' => $this->link->getAdminLink($this->className),
-            ),
-        );
+        $this->show_toolbar = false;
         $this->shopLinkType='';
         $this->simple_header = true;
         $this->token = Tools::getAdminTokenLite($this->className);
-        $this->title = sprintf(
-            $this->module->l('Combinations: %s', get_class($this)),
-            $this->name_product
-        );
+        $this->title = $this->module->l('Exchange movement');
         $this->table = 'mp_stock';
 
         $list = $this->getList();
@@ -92,18 +90,20 @@ class MpStockAdminHelperListAddMovement extends HelperListCore
         $combinations = MpStockTools::getCombinations($this->id_product);
         foreach ($combinations as $comb) {
             $row = array(
-                'value'=> $comb['id_product_attribute'],
-                'name' => Tools::strtoupper($comb['name']),
+                'key'=> $comb['id_product_attribute'],
+                'value' => Tools::strtoupper($comb['name']),
             );
             $list[] = $row;
         }
         
-        return MpStockTools::getOptionsCombination($list);
+        return array(
+            'options' => $list,
+        );
     }
     
     private function bindControls()
     {
-        return $this->smarty->fetch($this->module->getPath().'views/templates/admin/bind_controls.tpl');
+        return $this->smarty->fetch($this->module->getPath().'views/templates/admin/bind_exchange_controls.tpl');
     }
 
     protected function getFields()
@@ -116,38 +116,17 @@ class MpStockAdminHelperListAddMovement extends HelperListCore
             48,
             'text-right'
         );
-        MpStockTools::addText(
+        MpStockTools::addHtml(
             $list,
-            $this->module->l('Attribute', get_class($this)),
-            'id_product_attribute',
+            $this->module->l('Product', get_class($this)),
+            'id_product',
             48,
             'text-right'
         );
         MpStockTools::addHtml(
             $list,
-            $this->module->l('Type movement', get_class($this)),
-            'movement',
-            'auto',
-            'text-left'
-        );
-        MpStockTools::addText(
-            $list,
-            $this->module->l('Name', get_class($this)),
-            'name',
-            'auto',
-            'text-left'
-        );
-        MpStockTools::addHtml(
-            $list,
-            $this->module->l('Reference', get_class($this)),
-            'reference',
-            'auto',
-            'text-left'
-        );
-        MpStockTools::addHtml(
-            $list,
-            $this->module->l('EAN13', get_class($this)),
-            'ean13',
+            $this->module->l('Combination', get_class($this)),
+            'id_product_attribute',
             'auto',
             'text-left'
         );
@@ -156,14 +135,14 @@ class MpStockAdminHelperListAddMovement extends HelperListCore
             $this->module->l('Stock', get_class($this)),
             'stock',
             'auto',
-            'text-right'
+            'text-center'
         );
         MpStockTools::addHtml(
             $list,
             $this->module->l('Qty', get_class($this)),
             'qty',
             'auto',
-            'text-left'
+            'text-center'
         );
         MpStockTools::addHtml(
             $list,
@@ -206,72 +185,19 @@ class MpStockAdminHelperListAddMovement extends HelperListCore
 
     private function getList()
     {
-        $output = array();
-        $combinations = MpStockTools::getCombinations($this->id_product);
-        foreach ($combinations as $comb) {
-            $row = array(
-                'id_mp_stock' => 0,
-                'id_product_attribute'=> $comb['id_product_attribute'],
-                'movement' => $this->getMovements(),
-                'name' => Tools::strtoupper($comb['name']),
-                'reference' => $comb['reference'],
-                'ean13' => $comb['ean13'],
-                'qty' => MpStockTools::getHtmlQuantityTextElement(0),
-                'stock' => MpStockTools::displayQuantity(
-                    MpStockTools::getAvailableStock($comb['id_product_attribute'])
-                ),
-                'wholesale_price' =>
-                    MpStockTools::getHtmlPriceTextElement($comb['wholesale_price'], 'wholesale_price[]'),
-                'price' => MpStockTools::getHtmlPriceTextElement($comb['price'], 'price[]'),
-                'tax_rate' => MpStockTools::getHtmlPercentTextElement($comb['tax_rate'], 'input_tax_rate[]'),
-                'action' =>
-                    MpStockTools::getHtmlButtonCallBack(
-                        '',
-                        'icon icon-save',
-                        'javascript:saveCombination(this);',
-                        '#3030AA'
-                    ).
-                    MpStockTools::getHtmlButtonCallBack(
-                        '',
-                        'icon icon-times',
-                        'javascript:deleteCombination(this);',
-                        '#BB4040'
-                    ),
-                'status' => MpStockTools::getHtmlIcon('icon_status[]', 'icon-edit', '#303090'),
-            );
-            $output[] = $row;
-        }
-        return $output;
-    }
-
-    private function getMovements()
-    {
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('id_mp_stock_type_movement')
-            ->select('name')
-            ->from('mp_stock_type_movement')
-            ->where('id_lang='.(int)$this->id_lang)
-            ->where('id_shop='.(int)$this->id_shop)
-            ->orderBy('name');
-        $result = $db->executeS($sql);
-
-        $this->smarty->assign(
-            array(
-                'name' => 'input_select_movement[]',
-                'id' => '',
-                'select_first' => $this->module->l('Select a movement', get_class($this)),
-                'options' => array(
-                    'query' => $result,
-                    'key' => 'id_mp_stock_type_movement',
-                    'value' => 'name'
-                ),
-                'multiple' => false,
-                'chosen' => true,
-
-            )
+        $row = array(
+            'id_mp_stock' => 0,
+            'id_product'=> MpStockTools::getHtmlTextElement('', 'input_text_id_product_exchange', 'fixed-width-xxl', 'text-left'),
+            'id_product_attribute' => MpStockTools::getHtmlSelectEmptyElement('input_select_combination_exchange'),
+            'stock' => MpStockTools::displayQuantity(0),
+            'qty' => MpStockTools::getHtmlQuantityTextElement(0, 'input_text_qty_exchange'),
+            'wholesale_price' => MpStockTools::getHtmlPriceTextElement(0, 'input_text_wholesale_price_exchange'),
+            'price' => MpStockTools::getHtmlPriceTextElement(0, 'input_text_price_exchange'),
+            'tax_rate' => MpStockTools::getHtmlPercentTextElement(0, 'input_text_tax_rate_exchange'),
+            'action' => MpStockTools::getHtmlButtonCallBack('', 'icon icon-save', 'javascript:saveCombinationExchange(this);', '#3030AA')
+                .MpStockTools::getHtmlButtonCallBack('', 'icon icon-times', 'javascript:cancelCombinationExchange(this);', '#BB4040'),
+            'status' => MpStockTools::getHtmlIcon('icon_status[]', 'icon-edit', '#303090'),
         );
-        $select = $this->smarty->fetch($this->module->getPath().'views/templates/admin/html_element_select.tpl');
-        return $select;
+        return array($row);
     }
 }

@@ -24,17 +24,17 @@
 *}
 <input
     type='text'
-    name="{$name}"
+    name="{$name|escape:'htmlall':'UTF-8'}"
     {if $id}
-        id="{$id}"
+        id="{$id|escape:'htmlall':'UTF-8'}"
     {/if}
     {if $class}
-        class="{$class}"
+        class="{$class|escape:'htmlall':'UTF-8'}"
     {else}
         class="input"
     {/if}
-    value="{$value}"
+    value="{$value|escape:'htmlall':'UTF-8'}"
     {if $color}
-    style="color: {$color};"
+    style="color: {$color|escape:'htmlall':'UTF-8'};"
     {/if}
     >

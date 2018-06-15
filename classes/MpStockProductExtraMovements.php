@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockStockMovements
+Class MpStockProductExtraMovements
 {
     private $search_in_orders = true;
     private $search_in_slips = true;

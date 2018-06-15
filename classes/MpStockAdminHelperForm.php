@@ -65,7 +65,7 @@ Class MpStockAdminHelperForm extends HelperFormCore
             'fields_value' => $this->getFieldsValue(),
             'languages' => $this->context->controller->getLanguages(),
         );
-        return $this->generateForm($this->getFieldsForm());
+        return $this->generateForm($this->getFieldsForm()).$this->getScript();;
     }
     
     protected function getFieldsValue()
@@ -122,10 +122,33 @@ Class MpStockAdminHelperForm extends HelperFormCore
                             .'&tab_module=administration'
                             .'&module_name=mpstock'
                     ),
+                    'reset' => array(
+                        'title' => $this->module->l('Align Stocks', get_class($this)),
+                        'icon' => 'process-icon-reset',
+                        'href' => 'javascript:alignStock();'
+                    ),
+                    'quick_load_movement' => array(
+                        'title' => $this->module->l('Quick load', get_class($this)),
+                        'icon' => 'process-icon-plus',
+                        'href' => $this->link->getAdminLink('AdminMpStock')
+                            .'&quick_movement=load'
+                    ),
+                    'quick_unload_movement' => array(
+                        'title' => $this->module->l('Quick unload', get_class($this)),
+                        'icon' => 'process-icon-minus',
+                        'href' => $this->link->getAdminLink('AdminMpStock')
+                            .'&quick_movement=unload'
+                    ),
+
                 ),
             )
         );
-        
         return (array($fields_form));
+    }
+
+    public function getScript()
+    {
+        $smarty = Context::getContext()->smarty;
+        return $smarty->fetch($this->module->getAdminTemplatePath().'helper_form_align_stock.tpl');
     }
 }

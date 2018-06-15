@@ -22,11 +22,17 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<select name="{$name|escape:'htmlall':'UTF-8'}" {if $id}id="{$id}"{/if} class="select {if $chosen}chosen{/if}" {if $multiple}multiple{/if}>
-    {if $select_first}
-    	<option value='0'>{$select_first|escape:'htmlall':'UTF-8'}</option>
-    {/if}
-    {foreach $options.query as $option}
-        <option value="{$option[$options.key]|escape:'htmlall':'UTF-8'}">{$option[$options.value]|escape:'htmlall':'UTF-8'}</option>
+
+<div class="list-group" style="overflow: hidden;">
+    {assign var='row' value=$blank_row}
+    {assign var='save_block' value=true}
+    {assign var='counter' value=0}
+    {assign var='info_class' value='list-group-item-info'}
+    {include file=$template_row}
+    {assign var='info_class' value=''}
+    {assign var='save_block' value=false}
+    {foreach $fill_rows as $row}
+    	{assign var='counter' value=$counter+1}
+        {include file=$template_row}
     {/foreach}
-</select>
+</div>

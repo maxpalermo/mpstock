@@ -24,7 +24,9 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockObjectModelTypeMovement extends ObjectModelCore
+require_once _PS_MODULE_DIR_.'mpstock/mpstock.php';
+
+class MpStockConfiguration extends ObjectModel
 {
     public static $definition = array(
         'table' => 'mp_stock_type_movement',
@@ -77,70 +79,37 @@ Class MpStockObjectModelTypeMovement extends ObjectModelCore
     private $errors;
     /** @var MpStock module MpStock Module*/
     private $module;
-    
-    public function __construct($id = null, $id_lang = null, $id_shop = null) {
+
+    public function __construct($id =0, $id_lang = 0, $id_shop = 0)
+    {
+        $this->module = Context::getContext()->controller->module;
         if (!$id_lang) {
-            $this->id_lang = (int)ContextCore::getContext()->language->id;
+            $this->id_lang = Context::getContext()->language->id;
         }
         if (!$id_shop) {
-            $this->id_shop = (int)ContextCore::getContext()->shop->id;
+            $this->id_shop = Context::getContext()->shop->id;
         }
-        $this->sign = 1;
-        $this->exchange = 0;
-        parent::__construct($id, $id_lang, $id_shop);
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('count(*)')
-            ->from('mp_stock_type_movement')
-            ->where('id_mp_stock_type_movement='.(int)$this->id);
-        $this->record_exists = (bool)$db->getValue($sql);
-        $this->errors = array();
-        $this->module = new mpstock();
+        parent::__construct($id);
     }
-    
-    public function delete()
+
+    public static function installSQL()
     {
-        /** check if there are movements with this type **/
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('count(*)')
-            ->from('mp_stock')
-            ->where('id_mp_stock_type_movement='.(int)$this->id);
-        $result = (int)$db->getValue($sql);
+        $sql = "CREATE TABLE IF NOT EXISTS `"._DB_PREFIX_."mp_stock_type_movement` (
+            `id_mp_stock_type_movement` int(11) NOT NULL AUTO_INCREMENT,
+            `id_lang` int(11) NOT NULL,
+            `id_shop` int(11) NOT NULL,
+            `name` varchar(255) NOT NULL,
+            `sign` enum('-1','1') NOT NULL DEFAULT '1',
+            `exchange` boolean NOT NULL,
+            PRIMARY KEY  (`id_mp_stock_type_movement`)
+        ) ENGINE="._MYSQL_ENGINE_." DEFAULT CHARSET=utf8;";
+        $result = Db::getInstance()->execute($sql);
         if ($result) {
-            $this->errors[] = sprintf(
-                $this->module->l('Unable to delete this movement type.', get_class($this))
-                .$this->module->l('There are still %d stock movement(s) associated.', get_class($this)),
-                $result
-            );
+            return true;
+        } else {
+            $this->module->addError(Db::getInstance()->getMsgError());
             return false;
         }
-        return parent::delete();
-    }
-
-    public function getErrorMessage()
-    {
-        return implode(PHP_EOL, $this->errors);
-    }
-
-    public static function exists($id)
-    {
-        $db = Db::getInstance();
-        $sql = new DbQueryCore();
-        $sql->select('count(*)')
-            ->from('mp_stock_type_movement')
-            ->where('id_mp_stock_type_movement='.(int)$id);
-        return (bool)$db->getValue($sql);
-    }
-
-    public function getArrayValues()
-    {
-        return array(
-            'input_id_mp_stock_type_movement' => (int)$this->id_mp_stock_type_movement,
-            'input_name' => $this->name,
-            'input_sign' => (int)$this->sign,
-            'input_exchange' => (int)$this->exchange,
-        );
     }
 
     public function getListMovements()
@@ -279,17 +248,171 @@ Class MpStockObjectModelTypeMovement extends ObjectModelCore
                 . ' value="' . $button['value'] 
                 . '" name="' . $button['name'] 
                 . '" class="btn btn-default">'
-				. '<i class="icon ' . $button['icon'] . '"'
+                . '<i class="icon ' . $button['icon'] . '"'
                 . $color
                 . '"></i> '
                 . $button['title']
-				. '</button>';
+                . '</button>';
         }
         return implode('', $output);
     }
+
+    public function delete()
+    {
+        /** check if there are movements with this type **/
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('count(*)')
+            ->from('mp_stock')
+            ->where('id_mp_stock_type_movement='.(int)$this->id);
+        $result = (int)$db->getValue($sql);
+        if ($result) {
+            $this->errors[] = sprintf(
+                $this->module->l('Unable to delete this movement type.', get_class($this))
+                .$this->module->l('There are still %d stock movement(s) associated.', get_class($this)),
+                $result
+            );
+            return false;
+        }
+        return parent::delete();
+    }
     
-    public function save($null_values = false, $auto_date = true) {
-        $this->id_mpstock_type_movement = $this->id;
-        return parent::save($null_values, $auto_date);
+
+
+
+
+
+
+
+
+
+    public $context;
+    public $values;
+    public $id_lang;
+    public $module;
+    public $link;
+    protected $cookie;
+    protected $className = 'AdminMpStock';
+    protected $localeInfo;
+    protected $table_name = 'mp_stock_import';
+    
+    public function _construct($module)
+    {
+        $this->module = $module;
+        $this->context = Context::getContext();
+        $this->link = new LinkCore();
+        $this->values = array();
+        $this->id_lang = (int)$this->context->language->id;
+        $this->id_shop = (int)$this->context->shop->id;
+        parent::__construct();
+        $this->cookie = Context::getContext()->cookie;
+        $this->localeInfo = MpStockTools::getLocaleInfo();
+    }
+    
+    public function display()
+    {
+        $this->bootstrap = true;
+        $this->currentIndex = "#";
+        $this->identifier = '';
+        $this->no_link = true;
+        $this->page = Tools::getValue('submitFilterconfiguration', 1);
+        $this->_default_pagination = Tools::getValue('configuration_pagination', 20);
+        $this->show_toolbar = true;
+        $this->toolbar_btn = array(
+            'new' => array(
+                'href' => $this->link->getAdminLink('AdminModules')
+                    .'&configure=mpstock'
+                    .'&module_name=mpstock'
+                    .'&tab_module=administration'
+                    .'&submitNewMovement',
+                'desc' => $this->l('New movement'),
+            ),
+            'back' => array(
+                'desc' => $this->module->l('Go to Stock Movements', get_class($this)),
+                'href' => $this->module->link->getAdminlink('AdminMpStock'),
+            ),
+        );
+        $this->shopLinkType='';
+        $this->simple_header = false;
+        $this->token = Tools::getAdminTokenLite('AdminModules');
+        $this->title = $this->module->l('Documents found', get_class($this));
+        $this->table = 'mp_stock_type_movement';
+        
+        $this->mpMovement = new MpStockObjectModelTypeMovement();
+        $list = $this->mpMovement->getListMovements();
+        $this->listTotal = count($list);
+        $fields_display = $this->getFields();
+        
+        return $this->generateList($list, $fields_display).$this->getScript();
+    }
+    
+    private function getScript()
+    {
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'module_url' => $this->module->link->getAdminlink('AdminModules')
+                    .'&tab_module=administration'
+                    .'&module_name=mpstock'
+                    .'&configure=mpstock',
+            )
+        );
+        return $smarty->fetch($this->module->getAdminTemplatePath().'helper_list_type_movement.tpl');
+    }
+
+    protected function getFields()
+    {
+        $list = array();
+        MpStockTools::addHtml(
+            $list,
+            '',
+            'check',
+            '32',
+            'text-center'
+        );
+        MpStockTools::addText(
+            $list,
+            $this->module->l('Id', get_class($this)),
+            'id_mp_stock_type_movement',
+            '48',
+            'text-right'
+        );
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Language', get_class($this)),
+            'flag',
+            '28',
+            'text-center'
+        );
+        MpStockTools::addText(
+            $list,
+            $this->module->l('Name', get_class($this)),
+            'name',
+            'auto',
+            'text-left'
+        );
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Sign', get_class($this)),
+            'sign',
+            '32',
+            'text-center'
+        );
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Exchange', get_class($this)),
+            'exchange',
+            '32',
+            'text-center'
+        );
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Actions', get_class($this)),
+            'actions',
+            'auto',
+            'text-center'
+        );
+        
+        return $list;
     }
 }

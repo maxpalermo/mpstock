@@ -26,5 +26,10 @@
     $(document).ready(function(){
         var form = $('.mp_stock').closest('form');
         $(form).attr('action', $(form).attr('action') + '&key_tab=ModuleMpstock');
+        console.log('#product_quantities');
+        console.log("ciao!");
+        $('.available_quantity').each(function(){
+        	console.log ("row", this);
+        });  //find('input').attr('readonly', 'readonly');
     });
 </script>

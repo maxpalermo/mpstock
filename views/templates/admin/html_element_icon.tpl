@@ -22,5 +22,5 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<i {if $name}name="{$name}"{/if} class="icon {$icon}" {if $color}style="color: {$color};{/if}"></i>
-{if $title}&nbs&nbsp;$title{/if}
+<i {if $name}name="{$name|escape:'htmlall':'UTF-8'}"{/if} class="icon {$icon|escape:'htmlall':'UTF-8'}" {if $color}style="color: {$color|escape:'htmlall':'UTF-8'};{/if}"></i>
+{if $title}&nbs&nbsp;$title|escape:'htmlall':'UTF-8'{/if}

@@ -22,11 +22,5 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<select name="{$name|escape:'htmlall':'UTF-8'}" {if $id}id="{$id}"{/if} class="select {if $chosen}chosen{/if}" {if $multiple}multiple{/if}>
-    {if $select_first}
-    	<option value='0'>{$select_first|escape:'htmlall':'UTF-8'}</option>
-    {/if}
-    {foreach $options.query as $option}
-        <option value="{$option[$options.key]|escape:'htmlall':'UTF-8'}">{$option[$options.value]|escape:'htmlall':'UTF-8'}</option>
-    {/foreach}
-</select>
+
+<span class="badge" style="{if $background}background-color: {$background|escape:'htmlall':'UTF-8'};{/if}{if $color}color: {$color|escape:'htmlall':'UTF-8'};{/if}">{$value}</span>

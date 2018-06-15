@@ -22,4 +22,4 @@
 *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
 *  International Registered Trademark & Property of PrestaShop SA
 *}
-<img src='{$image.source}' style='{if !empty($image.width)}width: $image.width; {/if}{if !empty($image.height)}height: $image.height;{/if} object-fit: content;'>
+<img src='{$image.source}' style='{if !empty($image.width)}width: {$image.width|escape:'htmlall':'UTF-8'}; {/if}{if !empty($image.height)}height: {$image.height|escape:'htmlall':'UTF-8'};{/if} object-fit: content;'>

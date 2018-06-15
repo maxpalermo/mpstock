@@ -74,6 +74,145 @@ Class MpStockTools
         }
     }
 
+    public static function getAvailableStock($id_product_attribute)
+    {
+        $db = Db::getInstance();
+        $sql = "select quantity "
+        ."from "._DB_PREFIX_."stock_available "
+        ."where id_product_attribute=".(int)$id_product_attribute;
+        return (int)$db->getValue($sql);
+    }
+
+    public static function existsTypeMovement($type)
+    {
+        $db = Db::getInstance();
+        $sql = "select count(*) "
+            ." from "._DB_PREFIX_."mp_stock_type_movement "
+            ." where id_mp_stock_type_movement=".(int)$type;
+        return (boolean)$db->getValue($sql);
+    }
+
+    public static function getSign($type)
+    {
+        $db = Db::getInstance();
+        $sql = "select sign "
+            ." from "._DB_PREFIX_."mp_stock_type_movement "
+            ." where id_mp_stock_type_movement=".(int)$type;
+        $sign = (int)$db->getValue($sql);
+        PrestaShopLoggerCore::addLog('Get Sign for type '.$type.': '.$sign);
+        return $sign;
+    }
+
+    public static function getSnap($id_product_attribute)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('quantity')
+            ->from('stock_available')
+            ->where('id_product_attribute='.(int)$id_product_attribute);
+        return (int)$db->getValue($sql);
+    }
+
+    public static function getHtmlBadgeElement($value, $name='', $background='', $color='', $templatePath='')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name,
+                'id' => '',
+                'value' => $value,
+                'background' => $background,
+                'color' => $color,
+            )
+        );
+        $input = $smarty->fetch($templatePath.'html_element_badge.tpl');
+        return $input;   
+    }
+
+    public static function getHtmlSelectEmptyElement($name, $chosen = true, $multiple = false, $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name,
+                'chosen' => $chosen,
+                'multiple' => $multiple,
+            )
+        );
+        $input = $smarty->fetch($templatePath.'html_element_select_empty.tpl');
+        return $input;
+    }
+
+    /**
+     * Display an input element for text values
+     * @param  float $value Text value
+     * @param  string $name Name of the element
+     * @param  array $options Array of options ['key', 'value']
+     * @param  string $width Optional input width
+     * @param  string $align Optional input align
+     * @param  bool $chosen Optional chosen style
+     * @param  bool $multiple Optional Multiple choices
+     * @param  string $select_first Optional First element with id 0
+     * @return string HTML Template Input element
+     */
+    public static function getHtmlSelectElement(
+        $value,
+        $name,
+        $options = array('query', array()),
+        $width = 'fixed-width-md',
+        $align = 'text-left',
+        $chosen = true,
+        $multiple = false,
+        $first = '',
+        $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name,
+                'id' => '',
+                'class' => $width.$align,
+                'value' => Tools::displayPrice($value),
+                'options' => $options,
+                'chosen' => $chosen,
+                'multiple' => $multiple,
+                'select_first' => $first,
+            )
+        );
+        $input = $smarty->fetch($templatePath.'html_element_select.tpl');
+        return $input;
+    }
+
+    /**
+     * Display an input element for text values
+     * @param  float $value Text value
+     * @param  string $name Name of the element
+     * @param  string $width Optional input width
+     * @param  string $align Optional input align
+     * @param  string $color Optional Text color
+     * @param  string $templatePath Optional Template path
+     * @return string HTML Template Input element
+     */
+    public static function getHtmlTextElement($value, $name, $width = 'fixed-width-md', $align = 'text-left', $color = '', $templatePath = '')
+    {
+        $templatePath = self::getDefaultTemplatePath($templatePath);
+        $smarty = Context::getContext()->smarty;
+        $smarty->assign(
+            array(
+                'name' => $name,
+                'id' => '',
+                'class' => 'input input-text '.$width.$align,
+                'value' => Tools::displayPrice($value),
+                'color' => $color,
+            )
+        );
+        $input = $smarty->fetch($templatePath.'html_element_text.tpl');
+        return $input;
+    }
+
     /**
      * Display an input element for price values
      * @param  float value Price value
@@ -89,7 +228,7 @@ Class MpStockTools
             array(
                 'name' => $name,
                 'id' => '',
-                'class' => 'input text-right fixed-width-sm input-float',
+                'class' => 'input text-right fixed-width-sm input-price',
                 'value' => Tools::displayPrice($value),
             )
         );
@@ -113,7 +252,7 @@ Class MpStockTools
             array(
                 'name' => $name,
                 'id' => '',
-                'class' => 'input text-right fixed-width-sm input-float',
+                'class' => 'input text-right fixed-width-sm input-percent',
                 'value' => $percentage
             )
         );
@@ -482,14 +621,15 @@ Class MpStockTools
         /** Get id_product_attribute of specified id_product **/
         $sql_product_attribute = new DbQueryCore();
         $sql_product_attribute->select('id_product_attribute')
-            ->select('reference')
-            ->select('ean13')
-            ->select('price')
-            ->select('quantity')
-            ->select('wholesale_price')
-            ->select('quantity as stock')
-            ->from('product_attribute')
-            ->where('id_product='.(int)$id_product);
+            ->select('pa.reference')
+            ->select('pa.ean13')
+            ->select('p.price')
+            ->select('pa.quantity')
+            ->select('p.wholesale_price')
+            ->select('pa.quantity as stock')
+            ->from('product_attribute', 'pa')
+            ->innerJoin('product', 'p', 'p.id_product=pa.id_product')
+            ->where('pa.id_product='.(int)$id_product);
         $result_product_attribute = $db->executeS($sql_product_attribute);
         if (!$result_product_attribute) {
             return array();
@@ -535,6 +675,25 @@ Class MpStockTools
             return ($a < $b) ? -1 : 1;
         });
         return $combinations;
+    }
+
+    public static function getProductValues($ean13, $reference) 
+    {
+        $db = Db::getInstance();
+        $sql = "select id_product, id_product_attribute "
+        ."from "._DB_PREFIX_."product_attribute "
+        ."where "
+        ."ean13='".pSQL($ean13)."' and "
+        ."reference = '".pSQL($reference)."'";
+        $row = $db->getRow($sql);
+        if ($row) {
+            return array(
+                'id_product' => $row['id_product'],
+                'id_product_attribute' => $row['id_product_attribute'],
+            );
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -585,11 +744,31 @@ Class MpStockTools
     }
 
     /**
+     * Get product combination name
+     * @param  int $id_product_attribute Id product attribute
+     * @return string|array The name of the product combination or the error
+     */
+    public static function getProductName($id_product)
+    {
+        $id_lang = (int)Context::getContext()->language->id;
+        $db = Db::getInstance();
+        $sql = new DbQueryCore();
+        $sql->select('distinct pl.name')
+            ->from('product_lang', 'pl')
+            ->innerJoin('product', 'p', 'p.id_product=pl.id_product')
+            ->where('pl.id_lang='.(int)$id_lang)
+            ->where('p.id_product='.(int)$id_product);
+
+        $name = $db->getValue($sql);
+        return $name;
+    }
+
+    /**
      * Get the tax rate amount from a product
      * @param  int $id_product Id product
      * @return float Tax rate percent
      */
-    public static function getTaxRateFromIdProduct($id_product)
+    public static function getTaxRateFromIdProduct($id_product, $displayFormatted = false)
     {
         $db = Db::getInstance();
         $sql = new DbQueryCore();
@@ -598,7 +777,12 @@ Class MpStockTools
             ->innerJoin('tax_rule', 'tr', 't.id_tax=tr.id_tax')
             ->innerJoin('product', 'p', 'p.id_tax_rules_group=tr.id_tax_rules_group')
             ->where('p.id_product='.(int)$id_product);
-        return (float)$db->getValue($sql);
+        $tax_rate = (float)$db->getValue($sql);
+        if ($displayFormatted) {
+            return self::formatPercent($tax_rate);
+        } else {
+            return (float)$tax_rate;    
+        }
     }
 
     /**
@@ -615,5 +799,52 @@ Class MpStockTools
             ->from('mp_stock_type_movement')
             ->where('id_mp_stock_type_movement='.(int)$id_mp_stock_type_movement);
         return $db->getValue($sql);
+    }
+
+    public static function parseValue($value)
+    {        
+        $curr = new CurrencyCore((int)Context::getContext()->currency->id);
+        switch ($curr->format) {
+            case 1: //USD
+                $value = preg_replace("/[^\d.,]/", "", $value);
+                break;
+            case 2: //EUR
+                $value = preg_replace("/[^\d,]/", "", $value);
+                $value = str_replace(",", ".", $value);
+                break;
+            case 3: //EUR-BEFORE
+                $value = preg_replace("/[^\d,]/", "", $value);
+                $value = str_replace(",", ".", $value);
+                break;
+            case 4: //USD-AFTER
+                $value = preg_replace("/[^\d.,]/", "", $value);
+                break;
+            case 5: //USD-APC
+                $value = preg_replace("/[^\d.,]/", "", $value);
+                break;
+        }
+        return $value;
+    }
+
+    public static function formatCurrency($value)
+    {
+        return Tools::displayPrice($value);
+    }
+
+    public static function formatPercent($value)
+    {
+        $perc = Tools::displayPrice($value);
+        $perc_value = preg_replace("/[^\d.,]/", "", $perc);
+        return $perc_value.' %';
+    }
+
+    public static function getQty($id_movement)
+    {
+        $db = Db::getInstance();
+        $sql = "select qty from "._DB_PREFIX_."mp_stock where id_mp_stock=".(int)$id_movement;
+        $qty = (int)$db->getValue($sql);
+        //print "<pre>".$sql."</pre>";
+        //print "<pre>Quantity: ".$qty."</pre>";
+        return $qty;
     }
 }

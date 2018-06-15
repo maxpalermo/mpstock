@@ -24,12 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-/**
- * TODO CLICK ON ROW
- * onclick="document.location = 'index.php?controller=AdminProducts&id_product=16&updateproduct&token=ec9df8557a49430bdd6f0a8010dd2f34'"
- */
-
-Class MpStockAdminHelperListDocuments extends HelperListCore
+class MpStockAdminHelperListDocuments extends HelperListCore
 {
     public $context;
     public $values;
@@ -69,7 +64,7 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $this->bootstrap = true;
         $this->currentIndex = $this->context->link->getAdminLink($this->className, false);
         $this->identifier = 'id_mp_stock_import';
-        $this->no_link = false;
+        $this->no_link = true;
         $this->page = Tools::getValue('submitFilterconfiguration', 1);
         $this->_default_pagination = Tools::getValue('configuration_pagination', 20);
         $this->show_toolbar = true;
@@ -96,9 +91,15 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         $list = $this->getList();
         $fields_display = $this->getFields();
         
-        return $this->generateList($list, $fields_display);
+        return $this->generateList($list, $fields_display).$this->initScript();
     }
     
+    private function initScript()
+    {
+        $smarty = Context::getContext()->smarty;
+        return $smarty->fetch($this->module->getAdminTemplatePath().'helper_list_docs_script.tpl');
+    }
+
     protected function getFields()
     {
         $list = array();
@@ -123,11 +124,18 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
             'auto',
             'text-left'
         );
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Products', get_class($this)),
+            'rows',
+            '64',
+            'text-center'
+        );
         MpStockTools::addDate(
             $list,
             $this->module->l('Date movement', get_class($this)),
             'date_movement',
-            'auto',
+            128,
             'text-center',
             true
         );
@@ -138,7 +146,13 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
             'auto',
             'text-left'
         );
-        
+        MpStockTools::addHtml(
+            $list,
+            $this->module->l('Actions', get_class($this)),
+            'actions',
+            '48',
+            'text-center'
+        );
         return $list;
     }
     
@@ -178,9 +192,17 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
             ->leftJoin('mp_stock_type_movement', 'tm', 's.id_type_document=tm.id_mp_stock_type_movement')
             ->leftJoin('employee', 'e', 's.id_employee=e.id_employee')
             ->where('tm.id_lang='.(int)$this->id_lang)
-            ->where('tm.id_shop='.(int)$this->id_shop)
-            ->orderBy('s.date_movement DESC')
-            ->orderBy('s.filename DESC');
+            ->where('tm.id_shop='.(int)$this->id_shop);
+        if (Tools::isSubmit('mp_stock_importOrderby')) {
+            $sql->orderBy(
+                Tools::getValue('mp_stock_importOrderby', 'date_movement')
+                .' '
+                .Tools::getValue('mp_stock_importOrderway', 'desc')
+            );
+        } else {
+            $sql->orderBy('s.date_movement DESC')
+                ->orderBy('id_mp_stock_import DESC');
+        }
         
         $sql_count = new DbQueryCore();
         $sql_count->select('count(*)')
@@ -209,6 +231,36 @@ Class MpStockAdminHelperListDocuments extends HelperListCore
         //print "<pre>".$sql->build()."</pre>";
         
         $result = $db->executeS($sql);
+        if ($result) {
+            foreach ($result as &$row) {
+                $row['rows'] = MpStockTools::getHtmlBadgeElement(
+                    $this->countProducts($row['id_mp_stock_import'])
+                );
+                $row['actions'] =
+                MpStockTools::getHtmlButtonCallBack(
+                    '',
+                    'icon-times',
+                    'javascript:deleteDocument(this);',
+                    '#BB7070'
+                ).
+                MpStockTools::getHtmlLinkButton(
+                    '',
+                    'icon-file-text',
+                    $this->context->link->getAdminLink('AdminMpStock')
+                    .'&updatemp_stock_import'
+                    .'&id_mp_stock_import='.$row['id_mp_stock_import'],
+                    '#4040BB',
+                    ''
+                );
+            }
+        }
         return $result;
+    }
+
+    private function countProducts($id)
+    {
+        $db = Db::getInstance();
+        $sql = "select count(*) from "._DB_PREFIX_.'mp_stock where id_mp_stock_import='.(int)$id;
+        return (int)$db->getValue($sql);
     }
 }

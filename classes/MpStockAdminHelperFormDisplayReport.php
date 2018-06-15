@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-class MpStockAdminHelperFormAddMovement extends HelperFormCore
+class MpStockAdminHelperFormDisplayReport extends HelperFormCore
 {
     public $context;
     public $values;
@@ -45,22 +45,10 @@ class MpStockAdminHelperFormAddMovement extends HelperFormCore
         $this->id_lang = (int)$this->context->language->id;
         parent::__construct();
         $this->cookie = Context::getContext()->cookie;
-        if (Context::getContext()->language->iso_code == 'it') {
-            $this->localeInfo = array(
-                'decimal_point' => ',',
-                'thousands_sep' => '.',
-                'currency_char' => Context::getContext()->currency->sign,
-            );
-        } else {
-            $this->localeInfo = array(
-                'decimal_point' => '.',
-                'thousands_sep' => ',',
-                'currency_char' => Context::getContext()->currency->sign,
-            );
-        }
+        $this->localeInfo = MpStockTools::getLocaleInfo();
     }
     
-    public function display()
+    public function display($content)
     {
         $this->table = $this->table_name;
         $this->default_form_language = (int) ConfigurationCore::get('PS_LANG_DEFAULT');
@@ -72,18 +60,14 @@ class MpStockAdminHelperFormAddMovement extends HelperFormCore
             'fields_value' => $this->getFieldsValue(),
             'languages' => $this->context->controller->getLanguages(),
         );
+        $this->content = $content;
         return $this->generateForm($this->getFieldsForm());
     }
     
     protected function getFieldsValue()
     {
         return array(
-            $this->table_name.'_current_index' => '',
-            $this->table_name.'_token' => Tools::getAdminTokenLite($this->module->getAdminClassName()),
-            $this->table_name.'_decimal_point' => $this->localeInfo['decimal_point'],
-            $this->table_name.'_thousands_sep' => $this->localeInfo['thousands_sep'],
-            $this->table_name.'_currency_char' => $this->localeInfo['currency_char'],
-            'input_text_product' => '',
+            'input_textarea_report' => $this->content,
         );
     }
     
@@ -99,45 +83,20 @@ class MpStockAdminHelperFormAddMovement extends HelperFormCore
                 ),
                 'input' => array(
                     array(
-                        'type' => 'hidden',
-                        'name' => $this->table_name.'_current_index',
+                        'type' => 'textarea',
+                        'label' => $this->l('Report'),
+                        'autoload_rte' => true,
+                        'lang' => true,
+                        'rows' => 10,
+                        'cols' => 100,
+                        'name' => 'input_textarea_report',
                     ),
-                    array(
-                        'type' => 'hidden',
-                        'name' => $this->table_name.'_token',
-                    ),
-                    array(
-                        'type' => 'hidden',
-                        'name' => $this->table_name.'_decimal_point',
-                    ),
-                    array(
-                        'type' => 'hidden',
-                        'name' => $this->table_name.'_thousands_sep',
-                    ),
-                    array(
-                        'type' => 'hidden',
-                        'name' => $this->table_name.'_currency_char',
-                    ),
-                    array(
-                        'type' => 'text',
-                        'autocomplete' => true,
-                        'label' => $this->module->l('Product', get_class($this)),
-                        'desc' => $this->module->l(
-                            'Please, insert at least first three letters of reference or product name.'
-                        ),
-                        'name' => 'input_text_product',
-                        'class' => 'autocomplete',
-                    )
-                ),
-                'submit' => array(
-                    'title' => $this->module->l('Combinations', get_class($this)),
-                    'icon' => 'process-icon-duplicate',
                 ),
                 'buttons' => array(
-                    'back' => array(
-                        'title' => $this->module->l('Back', get_class($this)),
-                        'icon' => 'process-icon-back',
-                        'href' => $current_index,
+                    'save' => array(
+                        'title' => $this->module->l('Save Report', get_class($this)),
+                        'icon' => 'process-icon-save',
+                        'href' => 'javascript:SaveReport();',
                     ),
                 ),
             )

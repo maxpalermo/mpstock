@@ -28,16 +28,44 @@
     var currency_char = $('#mp_stock_currency_char').val();
 
     $(document).ready(function(){
-        $('.input-float').on('blur', function(){
-            var number = extractNumbers(this.value);
-            this.value = Number(number).toFixed(2);
-        });
-        $('.input-integer').on('blur', function(){
-            var number = extractNumbers(this.value);
-            this.value = Number(number).toFixed(0);
-        });
+        bind_values();
     });
     
+    function bind_values()
+    {
+        $('.input-price').on('blur', function(){
+            ajaxProcessFormat(this.value, 'price', this);
+        });
+        $('.input-percent').on('blur', function(){
+            ajaxProcessFormat(this.value, 'percent', this);
+        });
+    }
+
+    function ajaxProcessFormat(value, type, item)
+    {
+        $.ajax({
+            dataType: 'json',
+            data:
+            {
+                ajax: true,
+                action: 'formatValue',
+                value: value,
+                type: type,
+            },
+            success: function(data)
+            {
+                
+                item.value = data.value;
+                return true;
+            },
+            error: function()
+            {
+                item.value = 0;
+                return false;  
+            }
+        });
+    }
+
     /**
      * Extract digits and decimal separator from a string
      * @param { type } str String to be parsed

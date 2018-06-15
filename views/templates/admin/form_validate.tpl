@@ -27,6 +27,6 @@
         $('#mp_stock_form').validate();
     });
     {if $key_tab}
-        $('#product_form').attr('action', $('#product_form').attr('action') + '&key_tab={$key_tab}' + '&show_movements');
+        $('#product_form').attr('action', $('#product_form').attr('action') + '&key_tab={$key_tab|escape:'htmlall':'UTF-8'}' + '&show_movements');
     {/if}
 </script>

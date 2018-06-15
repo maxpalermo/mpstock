@@ -24,7 +24,7 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-Class MpStockHelperListTypeMovement extends HelperListCore
+class MpStockHelperListTypeMovement extends HelperListCore
 {
     public $context;
     public $values;
@@ -78,7 +78,7 @@ Class MpStockHelperListTypeMovement extends HelperListCore
         $this->title = $this->module->l('Documents found', get_class($this));
         $this->table = 'mp_stock_type_movement';
         
-        $this->mpMovement = new MpStockTypeMovementObjectModel();
+        $this->mpMovement = new MpStockObjectModelTypeMovement();
         $list = $this->mpMovement->getListMovements();
         $this->listTotal = count($list);
         $fields_display = $this->getFields();
