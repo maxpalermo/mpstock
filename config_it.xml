@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+	<name>mpstock</name>
+	<displayName><![CDATA[MP Magazzino]]></displayName>
+	<version><![CDATA[1.1.0]]></version>
+	<description><![CDATA[Gestisce il magazzino.]]></description>
+	<author><![CDATA[Massimiliano Palermo]]></author>
+	<tab><![CDATA[administration]]></tab>
+	<confirmUninstall><![CDATA[Sei sicuro di volere disinstallare?]]></confirmUninstall>
+	<is_configurable>0</is_configurable>
+	<need_instance>0</need_instance>
+	<limited_countries></limited_countries>
+</module>
