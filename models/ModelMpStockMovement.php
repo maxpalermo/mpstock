@@ -31,6 +31,7 @@ class ModelMpStockMovement extends AA_MpStockModelTemplate
     public $id_order;
     public $id_order_detail;
     public $id_mpstock_mvt_reason;
+    public $mvt_reason;
     public $id_product;
     public $id_product_attribute;
     public $reference;
@@ -78,6 +79,12 @@ class ModelMpStockMovement extends AA_MpStockModelTemplate
                 'type' => self::TYPE_INT,
                 'validate' => 'isInt',
                 'required' => true,
+            ),
+            'mvt_reason' => array(
+                'type' => self::TYPE_STRING,
+                'validate' => 'isString',
+                'size' => 255,
+                'required' => false,
             ),
             'id_product' => array(
                 'type' => self::TYPE_INT,

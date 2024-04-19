@@ -13,8 +13,8 @@ class ModelMpStockProductAlignment extends AA_MpStockModelTemplate
     public $date_upd;
 
     public static $definition = [
-        'table' => 'mp_stock_product_alignment',
-        'primary' => 'id_mp_stock_product_alignment',
+        'table' => 'mpstock_product_alignment',
+        'primary' => 'id_mpstock_product_alignment',
         'fields' => [
             'id_product' => [
                 'type' => self::TYPE_INT,

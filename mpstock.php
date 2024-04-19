@@ -17,7 +17,6 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
-
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -39,6 +38,8 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
     public const MENU_PRODUCT = 'AdminMpStockProduct';
     public const MENU_QUICK_MVT = 'AdminMpStockQuickMvt';
     public const MENU_AVAILABILITY = 'AdminMpStockAvailability';
+    public const MENU_IMPORT = 'AdminMpStockImport';
+    public const MENU_CONFIGURATION = 'AdminMpStockConfiguration';
 
     protected $config_form = false;
     protected $adminClassName = 'AdminMpStock';
@@ -47,9 +48,9 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
     protected $mpMovement;
     public $link;
     public $smarty;
-    private $errors = array();
-    private $warnings = array();
-    private $confirmations = array();
+    private $errors = [];
+    private $warnings = [];
+    private $confirmations = [];
 
     public function __construct()
     {
@@ -65,7 +66,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         $this->displayName = $this->l('MP Magazzino');
         $this->description = $this->l('Gestisce il magazzino.');
         $this->confirmUninstall = $this->l('Are you sure you want to uninstall?');
-        $this->ps_versions_compliancy = array('min' => '1.6', 'max' => _PS_VERSION_);
+        $this->ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
         $this->id_lang = (int) Context::getContext()->language->id;
         $this->id_shop = (int) Context::getContext()->shop->id;
         $this->link = new LinkCore();
@@ -74,6 +75,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Return the admin class name
+     *
      * @return string Admin class name
      */
     public function getAdminClassName()
@@ -83,6 +85,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Return the Admin Template Path
+     *
      * @return string The admin template path
      */
     public function getAdminTemplatePath()
@@ -92,6 +95,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Get the Id of current language
+     *
      * @return int id language
      */
     public function getIdLang()
@@ -101,6 +105,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Get the Id of current shop
+     *
      * @return int id shop
      */
     public function getIdShop()
@@ -110,6 +115,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Get The URL path of this module
+     *
      * @return string The URL of this module
      */
     public function getUrl()
@@ -119,6 +125,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Return the physical path of this module
+     *
      * @return string The path of this module
      */
     public function getPath()
@@ -128,6 +135,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Add a message to Errors collection
+     *
      * @param string $message Message to add to collection
      */
     public function addError($message)
@@ -137,6 +145,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Add a message to Warnings collection
+     *
      * @param string $message Message to add to collection
      */
     public function addWarning($message)
@@ -146,6 +155,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Add a message to Confirmations collection
+     *
      * @param string $message Message to add to collection
      */
     public function addConfirmation($message)
@@ -167,11 +177,12 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
 
     /**
      * Display Messages collections
+     *
      * @return string HTML messages
      */
     public function displayMessages()
     {
-        $output = array();
+        $output = [];
         foreach ($this->errors as $msg) {
             $output[] = $this->displayError($msg);
         }
@@ -181,16 +192,18 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         foreach ($this->confirmations as $msg) {
             $output[] = $this->displayConfirmation($msg);
         }
-        return implode("", $output);
+
+        return implode('', $output);
     }
 
     public function install()
     {
-        return parent::install() &&
-            ModelMpStockMvtReason::createTable() &&
-            ModelMpStockDocument::createTable() &&
-            ModelMpStockMovement::createTable() &&
-            $this->registerHooks(
+        return parent::install()
+            && ModelMpStockMvtReason::createTable()
+            && ModelMpStockDocument::createTable()
+            && ModelMpStockMovement::createTable()
+            && ModelMpStockImport::createTable()
+            && $this->registerHooks(
                 $this,
                 [
                     'actionAdminControllerSetMedia',
@@ -198,26 +211,29 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
                     'actionObjectOrderDetailAddAfter',
                     'actionObjectOrderDetailUpdateAfter',
                     'actionObjectOrderDetailDeleteAfter',
-
                 ]
-            ) &&
-            $this->installMenu('Mp Magazzino', $this->name, 0, self::MENU_MAIN) &&
-            $this->installMenu('Magazzino', $this->name, self::MENU_MAIN, self::MENU_STOCK) &&
-            $this->installMenu('Movimenti', $this->name, self::MENU_MAIN, self::MENU_MOVEMENTS) &&
-            $this->installMenu('Allinea', $this->name, self::MENU_MAIN, self::MENU_PRODUCT) &&
-            $this->installMenu('Mov Veloce', $this->name, self::MENU_MAIN, self::MENU_QUICK_MVT) &&
-            $this->installMenu('Disponibilità', $this->name, self::MENU_MAIN, self::MENU_AVAILABILITY);
+            )
+            && $this->installMenu('Mp Magazzino', $this->name, 0, self::MENU_MAIN)
+            && $this->installMenu('Magazzino', $this->name, self::MENU_MAIN, self::MENU_STOCK)
+            && $this->installMenu('Movimenti', $this->name, self::MENU_MAIN, self::MENU_MOVEMENTS)
+            && $this->installMenu('Allinea', $this->name, self::MENU_MAIN, self::MENU_PRODUCT)
+            && $this->installMenu('Importa', $this->name, self::MENU_MAIN, self::MENU_IMPORT)
+            && $this->installMenu('Mov Veloce', $this->name, self::MENU_MAIN, self::MENU_QUICK_MVT)
+            && $this->installMenu('Disponibilità', $this->name, self::MENU_MAIN, self::MENU_AVAILABILITY)
+            && $this->installMenu('Configurazione', $this->name, self::MENU_MAIN, self::MENU_CONFIGURATION);
     }
 
     public function uninstall()
     {
-        return parent::uninstall() &&
-            $this->uninstallMenu(self::MENU_AVAILABILITY) &&
-            $this->uninstallMenu(self::MENU_QUICK_MVT) &&
-            $this->uninstallMenu(self::MENU_PRODUCT) &&
-            $this->uninstallMenu(self::MENU_MOVEMENTS) &&
-            $this->uninstallMenu(self::MENU_STOCK) &&
-            $this->uninstallMenu(self::MENU_MAIN);
+        return parent::uninstall()
+            && $this->uninstallMenu(self::MENU_CONFIGURATION)
+            && $this->uninstallMenu(self::MENU_AVAILABILITY)
+            && $this->uninstallMenu(self::MENU_QUICK_MVT)
+            && $this->uninstallMenu(self::MENU_IMPORT)
+            && $this->uninstallMenu(self::MENU_PRODUCT)
+            && $this->uninstallMenu(self::MENU_MOVEMENTS)
+            && $this->uninstallMenu(self::MENU_STOCK)
+            && $this->uninstallMenu(self::MENU_MAIN);
     }
 
     public function hookActionAdminControllerSetMedia($params)
@@ -225,12 +241,13 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         $ctrl = $this->context->controller;
         if ($ctrl instanceof AdminController && method_exists($ctrl, 'addCss')) {
             $ctrl->addCss($this->getLocalPath() . 'views/css/icon-menu.css');
+            $ctrl->addCss($this->getLocalPath() . 'views/css/bootstrap.css');
         }
     }
 
     public function hookDisplayAdminProductsExtra()
     {
-        //TODO: Visualizzare la pagina degli allineamenti
+        // TODO: Visualizzare la pagina degli allineamenti
         $id_product = (int) Tools::getValue('id_product');
         $product = new Product($id_product);
         $combinations = $product->getAttributeCombinations($this->context->language->id);
@@ -259,6 +276,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
                 $image = '/img/p/' . $folder . $cover['id_image'] . '.jpg';
             } else {
                 $image = 'https://img.freepik.com/free-vector/oops-404-error-with-broken-robot-concept-illustration_114360-5529.jpg?w=826&t=st=1712664728~exp=1712665328~hmac=6db023dbbd90c5751ac79dceb73bf51675bfd9242c007b7e518b61ced6c023ee';
+                $image = 'icon icon-picture-o icon-4x';
             }
             $first = $variants[$key][0];
             $variants[$key]['image'] = $image;
@@ -289,7 +307,6 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
             'variants' => $variants,
             'link' => $this->context->link,
         ]);
-
 
         return $this->context->smarty->fetch($tpl);
     }
@@ -346,9 +363,11 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         if ($id_movement) {
             $movement->id = $id_movement;
             $movement->date_upd = date('Y-m-d H:i:s');
+
             return $movement->update();
         } else {
             $movement->date_add = date('Y-m-d H:i:s');
+
             return $movement->add();
         }
     }
@@ -358,6 +377,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         $db = Db::getInstance();
         $sql = 'SELECT id_mpstock_movement FROM ' . _DB_PREFIX_ . 'mpstock_movement WHERE id_order_detail = ' . (int) $id;
         $id_movement = (int) $db->getValue($sql);
+
         return $id_movement;
     }
 }

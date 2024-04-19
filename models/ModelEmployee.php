@@ -1,4 +1,5 @@
-{*
+<?php
+/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
@@ -15,6 +16,21 @@
  * @author    Massimiliano Palermo <maxx.palermo@gmail.com>
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
- *}
+ */
+class ModelEmployee extends EmployeeCore
+{
+    public static function getEmployees($active_only = true, $asSimpleArray = false)
+    {
+        $rows = parent::getEmployees($active_only);
+        if ($asSimpleArray) {
+            $result = [];
+            foreach ($rows as $row) {
+                $result[$row['id_employee']] = $row['firstname'] . ' ' . $row['lastname'];
+            }
 
-<div id="product_image">{$image_404}</div>
+            return $result;
+        }
+
+        return $rows;
+    }
+}

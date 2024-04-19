@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <module>
 	<name>mpstock</name>
-	<displayName><![CDATA[MP Magazzino]]></displayName>
-	<version><![CDATA[1.1.0]]></version>
-	<description><![CDATA[Gestisce il magazzino.]]></description>
+	<displayName><![CDATA[MP Pulisci DB]]></displayName>
+	<version><![CDATA[0.1.0]]></version>
+	<description><![CDATA[Pulisce i record orfani dalle tabelle di Prestashop]]></description>
 	<author><![CDATA[Massimiliano Palermo]]></author>
 	<tab><![CDATA[administration]]></tab>
 	<confirmUninstall><![CDATA[Sei sicuro di volere disinstallare?]]></confirmUninstall>

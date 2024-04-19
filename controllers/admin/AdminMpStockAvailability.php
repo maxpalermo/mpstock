@@ -23,6 +23,8 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpstock/models/autoload.php';
 
+use MpSoft\MpStock\Helpers\GetVariantName;
+
 class AdminMpStockAvailabilityController extends ModuleAdminController
 {
     protected $id_lang;
@@ -253,16 +255,7 @@ class AdminMpStockAvailabilityController extends ModuleAdminController
 
     public function getVariantName($value)
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('GROUP_CONCAT(al.name)')
-            ->from('product_attribute', 'pa')
-            ->innerJoin('product_attribute_combination', 'pac', 'pac.id_product_attribute = pa.id_product_attribute')
-            ->innerJoin('attribute_lang', 'al', 'al.id_attribute = pac.id_attribute and al.id_lang=' . (int) $this->id_lang)
-            ->where('pa.id_product_attribute=' . (int) $value);
-        $name = Tools::strtoupper($db->getValue($sql));
-
-        return $name;
+        return GetVariantName::get($value);
     }
 
     public function processSync()

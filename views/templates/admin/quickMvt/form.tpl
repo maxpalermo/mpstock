@@ -219,7 +219,7 @@
             $('#input_text_id_product_attribute').val(response.id_product_attribute);
             $('#input_text_product_name').html(response.name);
             $('#input_text_product_quantity').val(response.quantity);
-            $('#product_image').attr("src", response.image);
+            $('#product_image').html(response.image);
             if ("class" in response) {
                 $('#input_text_product_name').removeClass('^=text-').addClass('text-center text-bold')
                     .addClass(response.class);

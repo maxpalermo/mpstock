@@ -29,13 +29,11 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
     public $id;
     public $id_lang;
     public $id_shop;
-    public $id_stock_mvt_reason;
     public $sign;
+    public $name;
+    public $active;
     public $date_add;
     public $date_upd;
-    public $deleted;
-    public $transform;
-    public $name;
     protected $module;
     protected $context;
 
@@ -49,6 +47,11 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
                 'validate' => 'isBool',
                 'required' => true,
             ),
+            'active' => [
+                'type' => self::TYPE_BOOL,
+                'validate' => 'isBool',
+                'required' => true,
+            ],
             'date_add' => array(
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
@@ -61,24 +64,14 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
                 'timestamp' => true,
                 'required' => false,
             ),
-            'deleted' => array(
-                'type' => self::TYPE_BOOL,
-                'validate' => 'isBool',
-                'required' => true,
-            ),
-            'transform' => array(
-                'type' => self::TYPE_BOOL,
-                'validate' => 'isBool',
-                'required' => true,
-            ),
-            'name' => array(
-                'lang' => true,
+            /** LANG FIELD **/
+            'name' => [
                 'type' => self::TYPE_STRING,
+                'validate' => 'isGenericName',
                 'size' => 255,
-                'validate' => 'isString',
+                'lang' => true,
                 'required' => true,
-            ),
-
+            ],
         ),
     );
 
@@ -226,5 +219,34 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
         } else {
             return array();
         }
+    }
+
+    public static function getMovementReasons($id_lang = null, $asSimpleArray = false)
+    {
+        if (!$id_lang) {
+            $id_lang = Context::getContext()->language->id;
+        }
+
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('id_mpstock_mvt_reason, name')
+            ->from(self::$definition['table'] . '_lang')
+            ->where('id_lang=' . (int) $id_lang)
+            ->orderBy(self::$definition['primary']);
+        $rows = $db->executeS($sql);
+        if ($rows) {
+            if ($asSimpleArray) {
+                $result = [];
+                foreach ($rows as $row) {
+                    $result[$row['id_mpstock_mvt_reason']] = $row['name'];
+                }
+
+                return $result;
+            }
+
+            return $rows;
+        }
+
+        return [];
     }
 }

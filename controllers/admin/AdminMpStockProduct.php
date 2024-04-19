@@ -1,4 +1,5 @@
 <?php
+use MpSoft\MpStock\Helpers\DisplayImageThumbnail;
 
 class AdminMpStockProductController extends ModuleAdminController
 {
@@ -100,13 +101,7 @@ class AdminMpStockProductController extends ModuleAdminController
 
         foreach ($variants as $key => $variant) {
             $comb_name = '';
-            $cover = Image::getCover($product->id);
-            if ($cover) {
-                $folder = Image::getImgFolderStatic($cover['id_image']);
-                $image = '/img/p/' . $folder . $cover['id_image'] . '.jpg';
-            } else {
-                $image = 'https://img.freepik.com/free-vector/oops-404-error-with-broken-robot-concept-illustration_114360-5529.jpg?w=826&t=st=1712664728~exp=1712665328~hmac=6db023dbbd90c5751ac79dceb73bf51675bfd9242c007b7e518b61ced6c023ee';
-            }
+            $image = DisplayImageThumbnail::displayImage($product->id);
             $first = $variants[$key][0];
             $variants[$key]['image'] = $image;
             $variants[$key]['id_product'] = $product->id;

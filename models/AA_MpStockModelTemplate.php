@@ -19,21 +19,200 @@
  */
 class AA_MpStockModelTemplate extends ObjectModel
 {
+    public static function addPrefix($table)
+    {
+        if (!preg_match('/^' . _DB_PREFIX_ . '/', $table)) {
+            $table = _DB_PREFIX_ . $table;
+        }
+
+        return $table;
+    }
+
+    public static function existsTable($table)
+    {
+        $db = \Db::getInstance();
+        $table = self::addPrefix($table);
+        $sql = "SELECT count(*) FROM $table";
+
+        try {
+            $rows = $db->getValue($sql);
+        } catch (\Throwable $th) {
+            return false;
+        }
+
+        return $rows > 0;
+    }
+
+    public static function existsColumn($table, $column)
+    {
+        $table = self::addPrefix($table);
+        $schema = _DB_NAME_;
+        $sql = 'SELECT count(*) '
+            . 'FROM information_schema.COLUMNS '
+            . 'WHERE '
+            . "TABLE_SCHEMA = '{$schema}' "
+            . "AND TABLE_NAME = '{$table}' "
+            . "AND COLUMN_NAME = '{$column}';";
+
+        return (int) Db::getInstance()->getValue($sql);
+    }
+
+    public static function existsIndexByColumn($table, $column)
+    {
+        $table = self::addPrefix($table);
+        $query = "show index from {$table} where Column_name='{$column}';";
+        $result = Db::getInstance()->executeS($query);
+        if ($result) {
+            $index = $result[0]['Key_name'];
+
+            return $index;
+        }
+
+        return false;
+    }
+
+    public static function addIndex($table, $columns, $name = '', $type = '')
+    {
+        if (!is_array($columns)) {
+            $columns = [$columns];
+        }
+        if (!$name) {
+            $name = 'IDX_' . implode('_', $columns);
+        }
+        $columns = implode(',', $columns);
+        $table = self::addPrefix($table);
+        $sql = "ALTER TABLE `{$table}` ADD {$type} INDEX `{$name}` (`{$columns}`);";
+
+        try {
+            return \Db::getInstance()->execute($sql);
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode());
+        }
+    }
+
+    public static function addColumn($table, $name, $type, $null = false)
+    {
+        $table = self::addPrefix($table);
+        $sql = "ALTER TABLE `{$table}` ADD COLUMN `{$name}` {$type}" . ($null ? '' : ' NOT NULL') . ';';
+
+        try {
+            return \Db::getInstance()->execute($sql);
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode());
+        }
+    }
+
+    public static function alterColumn($table, $name, $type, $null = false)
+    {
+        $table = self::addPrefix($table);
+        $sql = "ALTER TABLE `{$table}` MODIFY COLUMN `{$name}` {$type}" . ($null ? '' : ' NOT NULL') . ';';
+
+        try {
+            return \Db::getInstance()->execute($sql);
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode());
+        }
+    }
+
+    public static function dropColumn($table, $name)
+    {
+        $table = self::addPrefix($table);
+        $sql = "ALTER TABLE `{$table}` DROP COLUMN `{$name}`;";
+
+        try {
+            return \Db::getInstance()->execute($sql);
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode());
+        }
+    }
+
+    public static function dropColumns($table, $fields)
+    {
+        foreach ($fields as $field) {
+            try {
+                $res = self::dropColumn($table, $field);
+            } catch (\Throwable $th) {
+                $res = false;
+            }
+        }
+
+        return $res;
+    }
+
+    public static function copyColumn($table, $source, $dest)
+    {
+        $table = self::addPrefix($table);
+        $source = self::addPrefix($source);
+        $dest = self::addPrefix($dest);
+        $sql = "ALTER TABLE `{$table}` ADD COLUMN `{$dest}` INT NOT NULL DEFAULT 0;";
+        $sql .= "UPDATE `{$table}` SET `{$dest}` = `{$source}`;";
+
+        try {
+            return \Db::getInstance()->execute($sql);
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode());
+        }
+    }
+
+    public static function renameColumn($table, $current_name, $new_name)
+    {
+        $table = self::addPrefix($table);
+        $sql = "ALTER TABLE `{$table}` RENAME COLUMN `{$current_name}` TO `{$new_name}`;";
+
+        try {
+            return \Db::getInstance()->execute($sql);
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode());
+        }
+    }
+
+    public static function clone($source, $dest)
+    {
+        $source = self::addPrefix($source);
+        $dest = self::addPrefix($dest);
+        $clone = "CREATE TABLE {$dest} LIKE {$source};\n"
+            . "INSERT INTO {$dest} SELECT * FROM {$source};";
+
+        try {
+            return \Db::getInstance()->execute($clone);
+        } catch (\Throwable $th) {
+            throw new \Exception($th->getMessage(), $th->getCode());
+        }
+    }
+
+    public function findTablesByNameColumn($column_name)
+    {
+        if (!is_array($column_name)) {
+            $column_name = [$column_name];
+        }
+        if (is_array($column_name)) {
+            foreach ($column_name as $column) {
+                if (!preg_match('/^`.*`$/', $column)) {
+                    $column = "`{$column}`";
+                }
+            }
+            $column_name = implode("','", $column_name);
+        }
+        $sql = 'SELECT DISTINCT table_name, column_name FROM information_schema.columns '
+            . "WHERE column_name IN ({$column_name}) AND table_schema = '" . _DB_NAME_ . "'";
+        $rows = \Db::getInstance()->executeS($sql);
+        if ($rows) {
+            return $rows;
+        }
+
+        return [];
+    }
+
     public static function truncate()
     {
         return Db::getInstance()->execute('TRUNCATE TABLE ' . _DB_PREFIX_ . static::$definition['table']);
     }
 
-    public static function existsColumn($table, $column)
+    public static function drop($table)
     {
-        $sql = 'SELECT count(*) '
-            . 'FROM information_schema.COLUMNS '
-            . 'WHERE '
-            . "TABLE_SCHEMA = '" . _DB_NAME_ . "' "
-            . "AND TABLE_NAME = '" . _DB_PREFIX_ . $table . "' "
-            . "AND COLUMN_NAME = '" . $column . "';";
+        $table = self::addPrefix($table);
 
-        return (int) Db::getInstance()->getValue($sql);
+        return \Db::getInstance()->execute("DROP TABLE `{$table}`");
     }
 
     public static function createTable()
@@ -209,23 +388,6 @@ class AA_MpStockModelTemplate extends ObjectModel
 
     public static function renameIndex($table, $oldName, $newName)
     {
-    }
-
-    public static function alterColumn($table, $field, $type)
-    {
-        if (!preg_match('/^' . _DB_PREFIX_, $table)) {
-            $table = _DB_PREFIX_ . $table;
-        }
-        $res = false;
-        $sql = "ALTER TABLE {$table} modify {$field} {$type};";
-
-        try {
-            $res = \Db::getInstance()->execute($sql);
-        } catch (\Throwable $th) {
-            return $th->getMessage();
-        }
-
-        return $res;
     }
 
     public function addSelect(&$select, $field)

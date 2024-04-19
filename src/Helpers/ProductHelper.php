@@ -19,6 +19,7 @@
  */
 
 namespace MpSoft\MpStock\Helpers;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -150,25 +151,8 @@ class ProductHelper
         return $id;
     }
 
-    public function getImage($id_product, $img_404 = '')
+    public function getImage($id_product)
     {
-        if ($id_product === false) {
-            return $this->module->getPathUri() . 'views/img/404.jpg';
-        }
-
-        $cover = \Image::getCover($id_product);
-        if ($cover) {
-            $image = new \Image($cover['id_image']);
-            $path = _PS_IMG_DIR_ . 'p/' . $image->getExistingImgPath() . '.jpg';
-            if (file_exists($path)) {
-                return _PS_IMG_ . 'p/' . $image->getExistingImgPath() . '.jpg';
-            } else {
-                if (!$img_404) {
-                    return $this->module->getPathUri() . 'views/img/404.jpg';
-                }
-
-                return $img_404;
-            }
-        }
+        return DisplayImageThumbnail::displayImage($id_product);
     }
 }

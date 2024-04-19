@@ -1,4 +1,6 @@
 <?php
+use MpSoft\MpStock\Helpers\DisplayImageThumbnail;
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -23,11 +25,14 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpstock/models/autoload.php';
 
+use MpSoft\MpStock\Helpers\GetVariantName;
+
 class AdminMpStockMovementsController extends ModuleAdminController
 {
     protected $id_lang;
     protected $id_shop;
     protected $id_employee;
+    protected $employees = [];
 
     public function __construct()
     {
@@ -182,13 +187,33 @@ class AdminMpStockMovementsController extends ModuleAdminController
                 'callback' => 'displayQuantity',
                 'float' => 'true',
             ],
+            'id_employee' => [
+                'title' => $this->module->l('Operatore', $this->controller_name),
+                'align' => 'text-left',
+                'type' => 'select',
+                'list' => ModelEmployee::getEmployees(true, true),
+                'width' => 'auto',
+                'class' => '',
+                'filter_key' => 'a!id_employee',
+                'filter_type' => 'int',
+                'callback' => 'getEmployeeName',
+            ],
             'date_add' => [
                 'title' => $this->module->l('Data', $this->controller_name),
                 'type' => 'datetime',
-                'align' => 'text-right',
+                'align' => 'text-center',
                 'width' => 'auto',
                 'class' => 'fixed-width-lg',
                 'filter_key' => 'a!date_add',
+                'filter_type' => 'date',
+            ],
+            'date_upd' => [
+                'title' => $this->module->l('Aggiornato', $this->controller_name),
+                'type' => 'datetime',
+                'align' => 'text-center',
+                'width' => 'auto',
+                'class' => 'fixed-width-lg',
+                'filter_key' => 'a!date_upd',
                 'filter_type' => 'date',
             ],
         ];
@@ -231,6 +256,22 @@ class AdminMpStockMovementsController extends ModuleAdminController
         return $name;
     }
 
+    public function getEmployeeName($value)
+    {
+        $value = (int) $value;
+
+        if (!isset($this->employees[$value])) {
+            $employee = new Employee($value);
+            $this->employees[$value] = Tools::strtoupper($employee->firstname . ' ' . $employee->lastname);
+        }
+
+        if (!isset($this->employees[$value])) {
+            return '--' . $value . '--';
+        }
+
+        return $this->employees[$value];
+    }
+
     public function displayQuantity($value)
     {
         if ($value < 0) {
@@ -270,21 +311,13 @@ class AdminMpStockMovementsController extends ModuleAdminController
             case 3: // Default
                 return '<span class="badge badge-pill badge-info">Default</span>';
         }
+
         return '<span class="badge badge-pill badge-warning"><i class="icon icon-question-circle"></i></span>';
     }
 
     public function getVariantName($value)
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('GROUP_CONCAT(al.name)')
-            ->from('product_attribute', 'pa')
-            ->innerJoin('product_attribute_combination', 'pac', 'pac.id_product_attribute = pa.id_product_attribute')
-            ->innerJoin('attribute_lang', 'al', 'al.id_attribute = pac.id_attribute and al.id_lang=' . (int) $this->id_lang)
-            ->where('pa.id_product_attribute=' . (int) $value);
-        $name = Tools::strtoupper($db->getValue($sql));
-
-        return $name;
+        return GetVariantName::get($value);
     }
 
     public function processSync()
@@ -404,14 +437,6 @@ class AdminMpStockMovementsController extends ModuleAdminController
 
     public function displayImage($value)
     {
-        $cover = Image::getCover((int) $value);
-        if ($cover) {
-            $image = new Image((int) $cover['id_image']);
-            $path = _PS_IMG_DIR_ . 'p/' . $image->getImgPath() . '.' . $image->image_format;
-            if (file_exists($path)) {
-                return '<img src="' . $this->context->link->getImageLink($image->getImgPath(), $image->id_image, 'small_default') . '" class="img-thumbnail" style="max-width: 50px; max-height: 50px; object-fit: contain;">';
-            }
-        }
-        return '<i class="icon icon-3x icon-picture"></i>';
+        return DisplayImageThumbnail::displayImage($value);
     }
 }

@@ -73,3 +73,13 @@ li[id^="subtab-"] a:before {
     content: "\f07a";
     color: #f1eaa7 !important;
 }
+
+#subtab-AdminMpStockImport a:before {
+    content: "\f019";
+    color: #f1eaa7 !important;
+}
+
+#subtab-AdminMpStockConfiguration a:before {
+    content: "\f0ad";
+    color: #f1eaa7 !important;
+}

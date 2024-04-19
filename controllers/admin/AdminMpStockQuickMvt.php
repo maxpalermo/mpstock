@@ -1,7 +1,4 @@
 <?php
-
-use MpSoft\MpStock\Helpers\ProductHelper;
-
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -25,6 +22,10 @@ if (!defined('_PS_VERSION_')) {
 }
 
 require_once _PS_MODULE_DIR_ . 'mpstock/models/autoload.php';
+
+use MpSoft\MpStock\Helpers\DisplayImageThumbnail;
+use MpSoft\MpStock\Helpers\GetVariantName;
+use MpSoft\MpStock\Helpers\ProductHelper;
 
 class AdminMpStockQuickMvtController extends ModuleAdminController
 {
@@ -66,6 +67,7 @@ class AdminMpStockQuickMvtController extends ModuleAdminController
             'id_employee' => $this->id_employee,
             'id_lang' => $this->id_lang,
             'id_shop' => $this->id_shop,
+            'image_404' => DisplayImageThumbnail::displayImage404('5x'),
         ]);
         $this->content = $this->context->smarty->fetch($tpl);
 
@@ -109,7 +111,7 @@ class AdminMpStockQuickMvtController extends ModuleAdminController
                     'name' => $this->getProductName($row['id_product']) . ' ' . $this->getVariantName($row['id_product_attribute']),
                     'quantity' => 1,
                     'class' => 'text-success text-bold',
-                    'image' => ProductHelper::getInstance()->getImage($row['id_product']),
+                    'image' => DisplayImageThumbnail::displayImage($row['id_product'], 'large_default', 220, 220, '5x'),
                 ]
             );
         } else {
@@ -120,7 +122,7 @@ class AdminMpStockQuickMvtController extends ModuleAdminController
                     'name' => $this->module->l('Codice EAN13 non trovato'),
                     'quantity' => 0,
                     'class' => 'text-danger',
-                    'image' => ProductHelper::getInstance()->getImage(false),
+                    'image' => DisplayImageThumbnail::displayImage404('5x'),
                 ]
             );
         }
@@ -169,6 +171,6 @@ class AdminMpStockQuickMvtController extends ModuleAdminController
 
     public function getVariantName($value)
     {
-        return ProductHelper::getInstance()->getVariantName($value);
+        return GetVariantName::get($value);
     }
 }

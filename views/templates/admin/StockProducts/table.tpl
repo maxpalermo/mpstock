@@ -41,10 +41,7 @@
                     {foreach $variants as $key=>$variant}
                         <tr>
                             <td>{$variant.id_product_attribute}</td>
-                            <td>
-                                <img src="{$variant.image}" alt="{$variant.name}" width="50" height="50"
-                                    style="object-fit: contain;">
-                            </td>
+                            <td>{$variant.image}</td>
                             <td>{$variant.reference}</td>
                             <td>{$variant.name}</td>
                             <td>

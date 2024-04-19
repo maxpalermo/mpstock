@@ -105,7 +105,7 @@ class AdminMpStockController extends ModuleAdminController
             $name = Tools::getValue('name', '');
             $sign = (int) Tools::getValue('sign');
             $transform = (int) Tools::getValue('transform');
-            $deleted = 0;
+            $active = 1;
             $date_add = date('Y-m-d H:i:s');
 
             if (empty($name)) {
@@ -119,7 +119,7 @@ class AdminMpStockController extends ModuleAdminController
             $obj->name[$this->id_lang] = $name;
             $obj->sign = $sign;
             $obj->transform = $transform;
-            $obj->deleted = $deleted;
+            $obj->active = $active;
             $obj->date_add = $date_add;
             $result = $obj->add();
             if ($result) {
@@ -1231,7 +1231,7 @@ class AdminMpStockController extends ModuleAdminController
             $obj->id = (int) $row['id_mp_stock_type_movement'];
             $obj->id_stock_mvt_reason = (int) $row['id_mp_stock_type_movement'];
             $obj->sign = (int) $row['sign'] == -1 ? true : false; //sign now is bool, true indicates sign presence for negative values
-            $obj->deleted = 0;
+            $obj->active = 1;
             $obj->transform = (bool) $row['exchange'];
             $obj->date_add = date('Y-m-d H:i:s');
             $obj->name[$this->id_lang] = $row['name'];
@@ -2754,7 +2754,7 @@ class AdminMpStockController extends ModuleAdminController
         }
 
         $mvtReason->sign = (int) $movement['sign'];
-        $mvtReason->deleted = false;
+        $mvtReason->active = true;
         $mvtReason->transform = false;
 
         try {
@@ -2764,7 +2764,7 @@ class AdminMpStockController extends ModuleAdminController
                     [
                         'name' => '',
                         'sign' => $mvtReason->sign,
-                        'deleted' => $mvtReason->deleted,
+                        'active' => $mvtReason->active,
                         'transform' => $mvtReason->transform,
                         'date_upd' => date('Y-m-d H:i:s')
                     ],
