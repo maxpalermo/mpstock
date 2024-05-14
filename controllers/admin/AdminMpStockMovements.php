@@ -47,18 +47,26 @@ class AdminMpStockMovementsController extends ModuleAdminController
         $this->id_employee = (int) Context::getContext()->employee->id;
     }
 
+    public function response($params)
+    {
+        header('Content-Type: application/json');
+        exit(Tools::jsonEncode($params));
+    }
+
     public function initProcess()
     {
         $this->table = 'mpstock_movement';
         $this->identifier = 'id_mpstock_movement';
         $this->list_id = $this->table;
-        $this->explicitSelect = true;
+        $this->explicitSelect = false;
         $this->list_no_link = true;
         $this->bulk_actions = [];
         $this->_defaultOrderWay = 'DESC';
         $this->_defaultOrderBy = 'a.date_add';
+        $this->addRowAction('edit');
+        $this->addRowAction('delete');
 
-        $this->_select = ' a.id_product as id_image, a.id_product_attribute as variant_name';
+        $this->_select = ' a.id_product as id_image, a.id_product_attribute as variant_id, pl.name as product_name';
         $this->_join = ' INNER JOIN ' . _DB_PREFIX_ . 'product p ON a.id_product = p.id_product';
         $this->_join .= ' INNER JOIN ' . _DB_PREFIX_ . 'product_lang pl ON a.id_product = pl.id_product AND pl.id_lang=' . (int) $this->id_lang;
         $this->_join .= ' INNER JOIN ' . _DB_PREFIX_ . 'product_attribute pa ON a.id_product_attribute = pa.id_product_attribute';
@@ -98,6 +106,18 @@ class AdminMpStockMovementsController extends ModuleAdminController
                 'width' => 'auto',
                 'filter_key' => 'a!mvt_reason',
             ],
+            'document_number' => [
+                'title' => $this->module->l('Num Doc.', $this->controller_name),
+                'type' => 'text',
+                'width' => 'auto',
+                'filter_key' => 'a!document_number',
+            ],
+            'document_date' => [
+                'title' => $this->module->l('Data Doc.', $this->controller_name),
+                'type' => 'date',
+                'width' => 'auto',
+                'filter_key' => 'a!document_date',
+            ],
             'id_order' => [
                 'title' => $this->module->l('Ord.', $this->controller_name),
                 'align' => 'text-right',
@@ -132,7 +152,7 @@ class AdminMpStockMovementsController extends ModuleAdminController
                 'class' => '',
                 'filter_key' => 'a!reference',
             ],
-            'barcode' => [
+            'ean13' => [
                 'title' => $this->module->l('Barcode', $this->controller_name),
                 'align' => 'text-left',
                 'width' => 'auto',
@@ -145,13 +165,6 @@ class AdminMpStockMovementsController extends ModuleAdminController
                 'width' => 'auto',
                 'class' => '',
                 'filter_key' => 'pl!name',
-            ],
-            'variant_name' => [
-                'title' => $this->module->l('Variante', $this->controller_name),
-                'align' => 'text-left',
-                'width' => 'auto',
-                'class' => '',
-                'search' => false,
                 'callback' => 'getVariantName',
             ],
             'stock_quantity_before' => [
@@ -240,8 +253,12 @@ class AdminMpStockMovementsController extends ModuleAdminController
 
     public function setMedia()
     {
-        $this->addCSS($this->module->getLocalPath() . 'views/css/panel-auto-width.css');
         parent::setMedia();
+
+        $this->addCSS($this->module->getLocalPath() . 'views/css/panel-auto-width.css');
+        $this->addCSS($this->module->getLocalPath() . 'views/css/dynamicSelect.css');
+        $this->addJS($this->module->getLocalPath() . 'views/js/dynamicSelect.js');
+        $this->addJqueryUI('ui.autocomplete');
     }
 
     public function getReasonName($value)
@@ -315,9 +332,9 @@ class AdminMpStockMovementsController extends ModuleAdminController
         return '<span class="badge badge-pill badge-warning"><i class="icon icon-question-circle"></i></span>';
     }
 
-    public function getVariantName($value)
+    public function getVariantName($value, $row)
     {
-        return GetVariantName::get($value);
+        return $value . ' ' . GetVariantName::get($row['variant_id']);
     }
 
     public function processSync()
@@ -435,8 +452,382 @@ class AdminMpStockMovementsController extends ModuleAdminController
         }
     }
 
+    public function processAddMovement()
+    {
+        if (Tools::isSubmit('saveMovementAndStay')) {
+            if (Tools::getValue('id_mpstock_movement')) {
+                $this->display = 'edit';
+            } else {
+                $this->display = 'add';
+            }
+        }
+
+        $id_mpstock_movement = (int) Tools::getValue('id_mpstock_movement');
+        $id_mpstock_mvt_reason = (int) Tools::getValue('id_mpstock_mvt_reason');
+        $id_product = (int) Tools::getValue('product_id');
+        $id_product_attribute = (int) Tools::getValue('id_product_attribute');
+        $stock_quantity = abs((int) Tools::getValue('product_qty'));
+        $wholesale_price = (float) Tools::getValue('product_wholesale_price_ti');
+        $price = (float) Tools::getValue('product_price_ti');
+        $id_order = (int) Tools::getValue('id_order');
+        $mvt_reason = Tools::getValue('mvt_reason');
+
+        $cookie = Context::getContext()->cookie;
+        $document = [
+            'document_number' => $cookie->document_number,
+            'document_date' => $cookie->document_date,
+            'document_supplier_id' => $cookie->document_supplier_id,
+        ];
+
+        if (!$id_mpstock_mvt_reason) {
+            $this->errors[] = $this->module->l('Selezionare un tipo di movimento.', $this->controller_name);
+        }
+        if (!$id_product) {
+            $this->errors[] = $this->module->l('Selezionare un prodotto.', $this->controller_name);
+        }
+        if (!$id_product_attribute) {
+            $this->errors[] = $this->module->l('Selezionare una variante.', $this->controller_name);
+        }
+        if (!$stock_quantity) {
+            $this->errors[] = $this->module->l('Inserire una quantità valida.', $this->controller_name);
+        }
+
+        if ($this->errors) {
+            return false;
+        }
+
+        $product = new Product($id_product, false, $this->id_lang);
+        if (!Validate::isLoadedObject($product)) {
+            $this->errors[] = $this->module->l('Prodotto non trovato.', $this->controller_name);
+
+            return false;
+        }
+        $pa = new Combination($id_product_attribute, $this->id_lang);
+        if (!Validate::isLoadedObject($pa)) {
+            $this->errors[] = $this->module->l('Variante non trovata.', $this->controller_name);
+
+            return false;
+        }
+        $reason = ModelMpStockMvtReason::getReason($id_mpstock_mvt_reason, $this->id_lang);
+        if ($reason === false) {
+            $this->errors[] = $this->module->l('Tipo di movimento non trovato.', $this->controller_name);
+
+            return false;
+        }
+
+        $id_stock_available = (int) StockAvailable::getStockAvailableIdByProductId($id_product, $id_product_attribute);
+        $stock = new StockAvailable($id_stock_available, $this->id_lang);
+        if (!Validate::isLoadedObject($stock)) {
+            $this->errors[] = $this->module->l('Stock non trovato.', $this->controller_name);
+
+            return false;
+        }
+
+        $sign = $reason->sign ? -1 : 1;
+        $tax_rate = $product->getTaxesRate();
+        $tax_rate = $tax_rate / 100 + 1;
+        $wholesale_price = number_format($wholesale_price / $tax_rate, 6);
+        $price = number_format($price / $tax_rate, 6);
+
+        if ($id_mpstock_movement) {
+            $mov = new ModelMpStockMovement($id_mpstock_movement, $this->id_lang);
+            if (!Validate::isLoadedObject($mov)) {
+                // New Movement
+                $stock_quantity_before = $stock->quantity;
+                $ref_movement = null;
+                $stock_quantity = $stock_quantity * $sign;
+                $stock_quantity_after = $stock_quantity_before + $stock_quantity;
+                $delta_stock = $stock_quantity;
+                $date_add = date('Y-m-d H:i:s');
+                $date_upd = null;
+            } else {
+                // Update old movement
+                $stock_quantity_before = $mov->stock_quantity_before;
+                $ref_movement = $mov->id;
+                $stock_quantity = $stock_quantity * $sign;
+                $stock_quantity_after = $stock_quantity_before + $stock_quantity;
+                $delta_stock = $stock_quantity_after - $mov->stock_quantity_after;
+                $date_add = $mov->date_add;
+                $date_upd = date('Y-m-d H:i:s');
+            }
+        } else {
+            $stock_quantity_before = $stock->quantity;
+            $ref_movement = null;
+            $stock_quantity = $stock_quantity * $sign;
+            $stock_quantity = $stock_quantity * $sign;
+            $stock_quantity_after = $stock_quantity_before + $stock_quantity;
+            $delta_stock = $stock_quantity;
+            $date_add = date('Y-m-d H:i:s');
+            $date_upd = null;
+        }
+
+        $movement = new ModelMpStockMovement();
+        $movement->id = $ref_movement;
+        $movement->id_warehouse = 0;
+        $movement->document_number = $document['document_number'];
+        $movement->document_date = $document['document_date'];
+        $movement->id_supplier = $document['document_supplier_id'];
+        $movement->id_mpstock_mvt_reason = $id_mpstock_mvt_reason;
+        $movement->id_product = $id_product;
+        $movement->id_product_attribute = $id_product_attribute;
+        $movement->reference = $pa->reference ? $pa->reference : $product->reference;
+        $movement->ean13 = $pa->ean13;
+        $movement->upc = $pa->upc;
+        $movement->wholesale_price_te = $wholesale_price;
+        $movement->price_te = $price;
+        $movement->id_employee = $this->id_employee;
+        $movement->id_order = $id_order;
+        $movement->id_order_detail = 0;
+        $movement->mvt_reason = $mvt_reason;
+        $movement->stock_quantity_before = $stock_quantity_before;
+        $movement->stock_movement = $stock_quantity;
+        $movement->stock_quantity_after = $stock_quantity_after;
+        $movement->date_add = $date_add;
+        $movement->date_upd = $date_upd;
+
+        try {
+            $res = $movement->add(false, true);
+            if (!$res) {
+                $this->errors[] = sprintf(
+                    $this->module->l('Errore durante il salvataggio del movimento: %s.', $this->controller_name),
+                    Db::getInstance()->getMsgError()
+                );
+
+                return false;
+            }
+            StockAvailable::updateQuantity($id_product, $id_product_attribute, $delta_stock);
+        } catch (\Throwable $th) {
+            $this->errors[] = $th->getMessage();
+
+            return false;
+        }
+
+        $this->confirmations[] = $this->module->l('Movimento aggiunto.', $this->controller_name);
+    }
+
     public function displayImage($value)
     {
         return DisplayImageThumbnail::displayImage($value);
+    }
+
+    public function renderForm()
+    {
+        if ($id_movement = Tools::getValue('id_mpstock_movement', 0)) {
+            $movement = new ModelMpStockMovement($id_movement, $this->id_lang);
+            if (Validate::isLoadedObject($movement)) {
+                $tax_rate = (new Product($movement->id_product))->getTaxesRate();
+                $tax_rate = $tax_rate / 100 + 1;
+                $movement->price_ti = number_format($movement->price_te * $tax_rate, 2);
+                $movement->wholesale_price_ti = number_format($movement->wholesale_price_te * $tax_rate, 2);
+                $movement->product_name = Product::getProductName($movement->id_product);
+                $variants = $this->processSearchProductAttribute($movement->id_product);
+
+                $cookie = Context::getContext()->cookie;
+                $cookie->document_number = $movement->document_number;
+                $cookie->document_date = date('Y-m-d', strtotime($movement->document_date));
+                $cookie->document_supplier_id = $movement->id_supplier;
+                $cookie->write();
+            }
+        } else {
+            if (!Tools::isSubmit('saveMovementAndStay') && !Tools::getValue('action') == 'setDocument') {
+                $cookie = Context::getContext()->cookie;
+                $cookie->document_number = '';
+                $cookie->document_date = '';
+                $cookie->document_supplier_id = 0;
+                $cookie->write();
+            }
+        }
+
+        $cookie = Context::getContext()->cookie;
+        $document = [
+            'document_number' => $cookie->document_number,
+            'document_date' => $cookie->document_date,
+            'document_supplier_id' => $cookie->document_supplier_id,
+        ];
+
+        if ($document['document_number'] && $document['document_date'] && $document['document_supplier_id']) {
+            $query = 'SELECT a.id_mpstock_movement, a.id_product, a.id_product_attribute, a.reference, a.ean13, a.stock_movement, '
+            . "'' as product_name, '' as product_variant "
+            . 'FROM ' . _DB_PREFIX_ . 'mpstock_movement a '
+            . "WHERE a.document_number='" . pSQL($document['document_number']) . "' "
+            . "AND a.document_date='" . pSQL($document['document_date']) . "' "
+            . 'AND a.id_supplier=' . (int) $document['document_supplier_id'] . ' '
+            . 'ORDER BY a.id_mpstock_movement ASC';
+            $db = Db::getInstance();
+            $document_movements = $db->executeS($query);
+            if ($document_movements) {
+                foreach ($document_movements as &$row) {
+                    $row['product_name'] = Product::getProductName($row['id_product']);
+                    $row['product_variant'] = GetVariantName::get($row['id_product_attribute']);
+                }
+            } else {
+                $document_movements = [];
+            }
+        } else {
+            $document_movements = [];
+        }
+
+        $tpl = $this->module->getLocalPath() . 'views/templates/admin/movements/add.tpl';
+        $this->context->smarty->assign([
+            'id_shop' => $this->id_shop,
+            'id_employee' => $this->id_employee,
+            'id_lang' => $this->id_lang,
+            'id_mpstock_movement' => (int) Tools::getValue('id_mpstock_movement'),
+            'id_mpstock_mvt_reason' => (int) Tools::getValue('id_mpstock_mvt_reason'),
+            'number_document' => Tools::getValue('number_document'),
+            'date_document' => Tools::getValue('date_document'),
+            'id_supplier' => (int) Tools::getValue('id_supplier'),
+            'date_add' => date('Y-m-d H:i:s'),
+            'reasons' => ModelMpStockMvtReason::getReasons($this->id_lang, 'rows'),
+            'employees' => ModelEmployee::getEmployees(true, true),
+            'suppliers' => Supplier::getSuppliers(false, $this->id_lang),
+            'ajax_controller' => $this->context->link->getAdminLink('AdminMpStockMovements'),
+            'back_url' => $this->context->link->getAdminLink('AdminMpStockMovements'),
+            'movement' => isset($movement) && $movement->id ? $movement : null,
+            'document' => $document,
+            'document_movements' => $document_movements,
+            'variants' => isset($variants) ? $variants : [],
+        ]);
+
+        return $this->context->smarty->fetch($tpl);
+    }
+
+    protected function getProducts()
+    {
+        $products = Product::getProducts($this->id_lang, 0, 0, 'id_product', 'ASC', false, true);
+        foreach ($products as &$product) {
+            $product['thumb'] = $this->getProductImage($product['id_product']);
+        }
+    }
+
+    protected function getProductImage($id_product)
+    {
+        $cover = Product::getCover($id_product);
+        $image = new Image($cover['id_image']);
+        $path = $image->getImgPath();
+        $folder = Image::getImgFolderStatic($image->id);
+        $imagePath = $this->context->shop->getBaseURL(true) . 'img/p/' . $path . '-small_default.jpg';
+
+        return $imagePath;
+    }
+
+    public function ajaxProcessSearchProduct()
+    {
+        $cookie = Context::getContext()->cookie;
+        $id_supplier = (int) $cookie->document_supplier_id;
+        $sql_supplier = isset($id_supplier) ? 'AND p.id_supplier=' . (int) $id_supplier . ' ' : '';
+
+        $term = Tools::getValue('q');
+        $query = 'SELECT p.id_product, pl.name, p.reference '
+            . 'FROM ' . _DB_PREFIX_ . 'product p'
+            . ' INNER JOIN ' . _DB_PREFIX_ . 'product_lang pl ON p.id_product = pl.id_product AND pl.id_lang=' . (int) $this->id_lang . ' '
+            . "WHERE name LIKE '%" . pSQL($term) . "%' "
+            . $sql_supplier
+            . "OR reference LIKE '%" . pSQL($term) . "%' "
+            . 'ORDER BY name ASC'
+            . ' LIMIT 25';
+        $db = Db::getInstance();
+        $result = $db->executeS($query);
+
+        foreach ($result as $row) {
+            if (isset($row['id_product'])) {
+                $row['id'] = $row['id_product'];
+            }
+            $image = $this->getProductImage($row['id_product']);
+            $temp_array = [];
+            $temp_array['id'] = $row['id_product'];
+            $temp_array['value'] = $row['id_product'];
+            $temp_array['reference'] = $row['reference'];
+            $temp_array['label'] = $this->displayOption($row['id'], $row['name'], $row['reference'], $image);
+            $temp_array['name'] = $row['name'];
+            $output[] = $temp_array;
+        }
+        if (!$result) {
+            $output = [
+                [
+                    'id' => 0,
+                    'value' => '',
+                    'reference' => '',
+                    'label' => '<h5>Nessun record trovato.</h5>',
+                    'name' => '',
+                ],
+            ];
+        }
+
+        $this->response($output);
+    }
+
+    public function processSetDocument()
+    {
+        if (Tools::isSubmit('submitAddDocument')) {
+            $cookie = Context::getContext()->cookie;
+            $cookie->document_number = Tools::getValue('document_number', '');
+            $cookie->document_date = Tools::getValue('document_date', '');
+            $cookie->document_supplier_id = Tools::getValue('id_supplier');
+            $cookie->write();
+            $this->display = 'add';
+            $this->confirmations[] = $this->module->l('Documento impostato.', $this->controller_name);
+        }
+
+        if (Tools::isSubmit('submitRemoveDocument')) {
+            $cookie = Context::getContext()->cookie;
+            $cookie->document_number = '';
+            $cookie->document_date = '';
+            $cookie->document_supplier_id = 0;
+            $cookie->write();
+            $this->display = 'add';
+            $this->confirmations[] = $this->module->l('Documento rimosso.', $this->controller_name);
+        }
+    }
+
+    public function processSearchProductAttribute($id_product)
+    {
+        $product = new Product($id_product, false, $this->id_lang);
+        $variants = $product->getAttributeCombinations($this->id_lang);
+        $output = [];
+        $temp_array = [];
+
+        foreach ($variants as $variant) {
+            $image = $this->getProductImage($id_product);
+            $id = $variant['id_product_attribute'];
+            $temp_array[$id]['id'] = $id;
+            $temp_array[$id]['value'] = $variant['id_product_attribute'];
+            $temp_array[$id]['reference'] = $variant['reference'];
+            $temp_array[$id]['name'] = $product->name;
+            $temp_array[$id]['image_src'] = $image;
+            $temp_array[$id]['group_name'][] = $variant['group_name'];
+            $temp_array[$id]['attribute_name'][] = $variant['attribute_name'];
+        }
+
+        foreach ($temp_array as &$value) {
+            $value['variant'] = implode(' - ', $value['attribute_name']);
+        }
+
+        return $temp_array;
+    }
+
+    public function ajaxProcessSearchProductAttribute()
+    {
+        $id_product = (int) Tools::getValue('id_product');
+
+        $this->response($this->processSearchProductAttribute($id_product));
+    }
+
+    protected function displayOption($id, $name, $reference, $image)
+    {
+        $html = '<div class="bootstrap ui-autocomplete-row">';
+        $html .= '<a id="ui-id-' . $id . '" class="ui-corner-all" tabindex="-1">';
+        $html .= '<div class="row">';
+        $html .= '  <div class="pull-left mr-2">';
+        $html .= '      <img src="' . $image . '" class="img-thumbnail" style="width: 64px; object-fit: contain;">';
+        $html .= '  </div>';
+        $html .= '  <div class="pull-left">';
+        $html .= '      <strong>' . $name . '</strong><br>';
+        $html .= '      <small>' . $reference . '</small>';
+        $html .= '  </div>';
+        $html .= '</a>';
+        $html .= '</div>';
+
+        return $html;
     }
 }

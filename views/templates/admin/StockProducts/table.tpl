@@ -17,12 +17,21 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  *}
 
-<form action="{$ajax_url}" method="post">
+<form action="{$ajax_url}" method="post" id="form-alignment">
     <input type="hidden" name="reference" value="{$reference}">
     <input type="hidden" name="action" value="submitAdjustment">
 
     <div class="panel">
+        <div class="panel-heading">
+            <i class="icon icon-align-justify"></i>
+            <span>{l s='Allineamento Prodotti' mod='mpstock'}</span>
+        </div>
         <div class="panel-body">
+            <div class="alert alert-info">
+                <p>
+                    {l s='In questa sezione puoi allineare le quantità dei prodotti con quelle presenti nel tuo magazzino.' mod='mpstock'}
+                </p>
+            </div>
             <table class="table table-bordered table-striped table-condensed">
                 <thead class="thead-light">
                     <tr>
@@ -95,5 +104,10 @@
         $('input').on('focus', function() {
             $(this).select();
         });
+        {if isset($isProductExtra) && $isProductExtra}
+            $("#product-quantities").after($("#form-alignment").detach());
+            $("#product-quantities").hide();
+            $("#link-ModuleMpstock").remove();
+        {/if}
     });
 </script>

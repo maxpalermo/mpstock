@@ -29,11 +29,9 @@
                     <label>{l s='Abilita Modulo' mod='mpstock'}</label>
                     <div class="form-input">
                         <span class="switch prestashop-switch fixed-width-lg">
-                            <input type="radio" name="enable" id="enable_on" value="1" {if $module_enabled} checked
-                                {/if}>
+                            <input type="radio" name="enable" id="enable_on" value="1" {if $module_enabled} checked {/if}>
                             <label for="enable_on"><i class="icon icon-2x icon-check text-success"></i></label>
-                            <input type="radio" name="enable" id="enable_off" value="0" {if !$module_enabled} checked
-                                {/if}>
+                            <input type="radio" name="enable" id="enable_off" value="0" {if !$module_enabled} checked {/if}>
                             <label for="enable_off"><i class="icon icon-2x icon-times text-danger"></i></label>
                             <a class="slide-button btn"></a>
                         </span>
@@ -49,8 +47,7 @@
                         {/if}
                         <select name="order_states[]" id="order_states" multiple="multiple" class="form-control chosen">
                             {foreach from=$order_states item=state}
-                                <option value="{$state.id_order_state}"
-                                    {if in_array($state.id_order_state, $selected_order_states)} selected {/if}>
+                                <option value="{$state.id_order_state}" {if in_array($state.id_order_state, $selected_order_states)} selected {/if}>
                                     {$state.name}
                                 </option>
                             {/foreach}
@@ -64,25 +61,41 @@
                     <div class="form-input">
                         <select name="order_detail_mvt_id" id="order_detail_mvt_id" class="form-control chosen">
                             {foreach from=$movement_reasons item=state}
-                                <option value="{$state.id_mpstock_mvt_reason}"
-                                    {if $state.id_mpstock_mvt_reason == $order_detail_mvt_id} selected {/if}>
+                                <option value="{$state.id_mpstock_mvt_reason}" {if $state.id_mpstock_mvt_reason == $order_detail_mvt_id} selected {/if}>
                                     {$state.name}
                                 </option>
                             {/foreach}
                         </select>
+                        <button class="btn btn-default pull-right mt-2" type="button">
+                            <i class="process-icon-plus"></i>
+                            <span>{l s='Nuovo Movimento' mod='mpstock'}</span>
+                        </button>
                     </div>
                 </div>
             </div>
             <div class="row">
-                <div class="form-group">
-                    <label>{l s='Modifica Tabelle' mod='mpstock'}</label>
-                    <div class="form-input">
-                        <textarea class="form-control" rows="5" readonly="readonly" id="tables" name="tables">
-                        </textarea>
+                <div class="col-md-12">
+                    <div class="form-group col-md-4">
+                        <label for="choose-step">{l s='Scegli il passo' mod='mpstock'}</label>
+                        <select id="choose-step" class="custom-select" name="choose-step">
+                            <option></option>
+                            <option value="0">{l s='Step 0: Struttura tabelle' mod='mpstock'}</option>
+                            <option value="1">{l s='Step 1: Tabella mvt_reason' mod='mpstock'}</option>
+                            <option value="2">{l s='Step 2: Tabella movements' mod='mpstock'}</option>
+                            <option value="3">{l s='Step 3: Aggiornamento tabella movements' mod='mpstock'}</option>
+                            <option value="4">{l s='Step 4: Inserimento ordini tabella movements' mod='mpstock'}</option>
+                        </select>
                         <button type="button" class="btn btn-default pull-right mt-2" id="btn_edit_tables">
-                            <i class="icon icon-edit"></i>
-                            {l s='Modifica' mod='mpstock'}
+                            <i class="process-icon-edit"></i>
+                            {l s='Inizia Modifiche' mod='mpstock'}
                         </button>
+                    </div>
+
+                    <div class="form-group col-md-12">
+                        <label>{l s='Modifica Tabelle' mod='mpstock'}</label>
+                        <div class="form-input">
+                            <textarea class="form-control" rows="5" readonly="readonly" id="tables" name="tables"></textarea>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -179,6 +192,22 @@
         });
     }
 
+    function InsertOrdersIntoMovements() {
+        $.ajax({
+            url: '{$ajax_controller}',
+            type: 'POST',
+            data: {
+                ajax: true,
+                action: 'insertOrdersIntoMovements',
+                step: 4,
+            },
+            success: function(response) {
+                appendTextToTextarea(response.message);
+                alert("Operazione eseguita con successo");
+            }
+        });
+    }
+
     $(document).ready(function() {
         $(document).on('ajaxStart', function() {
             $('body').css('cursor', 'progress');
@@ -196,7 +225,14 @@
             if(confirm("{l s='Sei sicuro di voler modificare le tabelle?' mod='mpstock'}"))
             {
                 $('#tables').val('');
-                editTables_0();
+                let step = $('#choose-step').val();
+                if (step == 4) {
+                    return InsertOrdersIntoMovements();
+                } else if (step > 0) {
+                    window['editTables_' + step]();
+                } else {
+                    editTables_0();
+                }
             }
         });
     });

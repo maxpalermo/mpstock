@@ -71,7 +71,7 @@ class AdminMpStockConfigurationController extends ModuleAdminController
             'image_404' => DisplayImageThumbnail::displayImage404('5x'),
             'order_states' => OrderState::getOrderStates($this->id_lang),
             'selected_order_states' => json_decode(Configuration::get('MPSTOCK_ORDER_STATES'), true),
-            'movement_reasons' => ModelMpStockMvtReason::getMovementReasons(),
+            'movement_reasons' => ModelMpStockMvtReason::getMovementReasons($this->id_lang, false, 1),
             'order_detail_mvt_id' => (int) Configuration::get('MPSTOCK_ORDER_DETAIL_MOVEMENT_REASON_ID'),
         ]);
         $this->content = $this->context->smarty->fetch($tpl);
@@ -87,6 +87,13 @@ class AdminMpStockConfigurationController extends ModuleAdminController
 
     public function postProcess()
     {
+        if (Tools::getValue('function')) {
+            $func = 'func' . ucfirst(Tools::getValue('function'));
+            if (method_exists($this, $func)) {
+                exit($this->$func());
+            }
+        }
+
         return parent::postProcess();
     }
 
@@ -142,6 +149,11 @@ class AdminMpStockConfigurationController extends ModuleAdminController
             $response
         );
         $this->response($response);
+    }
+
+    public function ajaxProcessInsertOrdersIntoMovements()
+    {
+        $this->response($this->insertOrderMovements());
     }
 
     protected function processStep_0()
@@ -279,6 +291,7 @@ class AdminMpStockConfigurationController extends ModuleAdminController
          *  - Aggiungo le colonne
          *      - id_order
          *      - id_order_detail
+         *      - document
          *      - mvt_reason
          *      - stock_quantity_before
          *      - stock_quantity_movement
@@ -288,6 +301,7 @@ class AdminMpStockConfigurationController extends ModuleAdminController
          *  - Cambio usable_quantity_te in stock_movement
          *  - Rinomino la tabella in mpstock_movement
          *  - Rinomino id_mpstock_product in id_mpstock_movement
+         *  - Inserisco le righe degli ordini nella tabella mpstock_movement
          */
         $source = 'mpstock_product';
         $exists = AA_MpStockModelTemplate::existsTable($source);
@@ -302,7 +316,10 @@ class AdminMpStockConfigurationController extends ModuleAdminController
             return $response;
         }
 
+        AA_MpStockModelTemplate::clone($source, 'mpstock_product_bak_' . date('Ymd_His'));
+
         $newColumns = [
+            'document' => 'TEXT',
             'id_order' => 'INT(11)',
             'id_order_detail' => 'INT(11)',
             'mvt_reason' => 'VARCHAR(255)',
@@ -390,6 +407,8 @@ class AdminMpStockConfigurationController extends ModuleAdminController
                 return $response;
             }
 
+            $this->insertOrderMovements();
+
             $response = [
                 'status' => 'success',
                 'message' => 'Step 2 completato: Tabella ' . $source . ' modificata.',
@@ -404,6 +423,144 @@ class AdminMpStockConfigurationController extends ModuleAdminController
         ];
 
         return $response;
+    }
+
+    protected function insertOrderMovements()
+    {
+        $tbl_od = _DB_PREFIX_ . 'order_detail';
+        $tbl_o = _DB_PREFIX_ . 'orders';
+        $id_movement = (int) Configuration::get('MPSTOCK_ORDER_DETAIL_MOVEMENT_REASON_ID');
+        $mvt = new ModelMpStockMvtReason($id_movement, $this->id_lang);
+        $mvt_reason = $mvt->name;
+
+        $query = "SELECT od.*, o.date_add, o.date_upd FROM {$tbl_od} od "
+            . "INNER JOIN {$tbl_o} o ON o.id_order = od.id_order "
+            . 'ORDER BY od.id_order_detail';
+        $rows = Db::getInstance()->executeS($query);
+        if ($rows) {
+            $header = [
+                'id_warehouse',
+                'id_document',
+                'id_order',
+                'id_order_detail',
+                'id_mpstock_mvt_reason',
+                'mvt_reason',
+                'id_product',
+                'id_product_attribute',
+                'reference',
+                'ean13',
+                'upc',
+                'stock_quantity_before',
+                'stock_movement',
+                'stock_quantity_after',
+                'price_te',
+                'wholesale_price_te',
+                'id_employee',
+                'date_add',
+                'date_upd',
+            ];
+            $header = array_map(function ($item) {
+                return '`' . $item . '`';
+            }, $header);
+
+            $values = [];
+            foreach ($rows as $row) {
+                $data = [
+                    'id_warehouse' => 0,
+                    'id_document' => 0,
+                    'id_order' => $row['id_order'],
+                    'id_order_detail' => $row['id_order_detail'],
+                    'id_mpstock_mvt_reason' => $id_movement,
+                    'mvt_reason' => $mvt_reason,
+                    'id_product' => $row['product_id'],
+                    'id_product_attribute' => $row['product_attribute_id'],
+                    'reference' => $row['product_reference'],
+                    'ean13' => $row['product_ean13'],
+                    'upc' => $row['product_upc'],
+                    'stock_quantity_before' => $row['product_quantity_in_stock'],
+                    'stock_movement' => -$row['product_quantity'],
+                    'stock_quantity_after' => $row['product_quantity_in_stock'] - $row['product_quantity'],
+                    'price_te' => $row['product_price'],
+                    'wholesale_price_te' => 0,
+                    'id_employee' => 0,
+                    'date_add' => $row['date_add'],
+                    'date_upd' => $row['date_upd'],
+                ];
+                $value = array_values($data);
+                $values[] = '(' . implode(',', array_map(function ($item) {
+                    return "'" . Db::getInstance()->escape($item, false, true) . "'";
+                }, $value)) . ')';
+            }
+
+            $pfx = _DB_PREFIX_ . 'mpstock_movement';
+            $fields = implode(',', $header);
+
+            do {
+                $chunk = array_splice($values, 0, 25000);
+                $fields_values = implode(',', $chunk);
+                $QUERY = "INSERT IGNORE INTO {$pfx} ({$fields}) VALUES {$fields_values};";
+
+                try {
+                    $res = Db::getInstance()->execute($QUERY);
+                    if (!$res) {
+                        $this->errors[] = Db::getInstance()->getMsgError();
+                    }
+                } catch (\Throwable $th) {
+                    $this->errors[] = $th->getMessage();
+                    $res = false;
+                }
+            } while ($values);
+
+            if ($res) {
+                return $this->updateOrderDescription();
+            }
+
+            return $res;
+        }
+    }
+
+    protected function updateOrderDescription()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sub = new DbQuery();
+
+        $sub->select('id_document')
+            ->from('mpstock_movement')
+            ->where('id_document > 0');
+        $sub = '(' . $sub->build() . ')';
+
+        $sql->select('a.id_mpstock_document, a.number_document, a.date_document, b.name')
+            ->from('mpstock_document', 'a')
+            ->leftJoin('supplier', 'b', 'a.id_supplier = b.id_supplier AND a.id_supplier > 0')
+            ->where('a.id_mpstock_document in ' . $sub);
+        $sql = $sql->build();
+        $rows = $db->executeS($sql);
+        if (!$rows) {
+            return true;
+        }
+
+        $queries = [];
+        foreach ($rows as $row) {
+            $id_document = (int) $row['id_mpstock_document'];
+            $document = strtoupper($row['number_document']) . ' del ' . date('d/m/Y', strtotime($row['date_document']));
+            if ($document == '0 del 01/01/1970') {
+                continue;
+            }
+            $document .= ' - ' . strtoupper($row['name']);
+            $queries[] = 'UPDATE ' . _DB_PREFIX_ . "mpstock_movement SET document = '{$document}' WHERE id_document = {$id_document};";
+        }
+        if ($queries) {
+            try {
+                $db->execute(implode("\n", $queries));
+            } catch (\Throwable $th) {
+                $this->errors[] = $th->getMessage();
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function processStep_3()
@@ -540,5 +697,32 @@ class AdminMpStockConfigurationController extends ModuleAdminController
         ];
 
         return $response;
+    }
+
+    public function funcUpdateOrderReferences()
+    {
+        $db = Db::getInstance();
+        $query = 'SELECT b.id_mpstock_movement, a.id_mpstock_document, a.number_document, a.date_document, a.id_supplier '
+            . 'FROM ' . _DB_PREFIX_ . 'mpstock_document a '
+            . 'INNER JOIN ' . _DB_PREFIX_ . 'mpstock_movement b ON a.id_mpstock_document = b.id_document '
+            . 'WHERE a.id_mpstock_document > 0 '
+            . 'AND a.date_document != \'1970-01-01\' '
+            . 'ORDER BY a.id_mpstock_document';
+        $documents = $db->executeS($query);
+        $updates = [];
+        foreach ($documents as $doc) {
+            $updates[] = 'UPDATE ' . _DB_PREFIX_ . 'mpstock_movement SET '
+                . "document_number='{$doc['number_document']}', "
+                . "document_date='{$doc['date_document']}', "
+                . "id_supplier= {$doc['id_supplier']} "
+                . "WHERE id_mpstock_movement = {$doc['id_mpstock_movement']};";
+        }
+        $query = implode("\n", $updates);
+        $res = $db->execute($query);
+        if ($res) {
+            exit('RIGHE AGGIORNATE: ' . $db->Affected_Rows());
+        }
+
+        exit('ERRORE: ' . $db->getMsgError());
     }
 }

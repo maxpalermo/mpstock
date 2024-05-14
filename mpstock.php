@@ -1,4 +1,7 @@
 <?php
+
+use MpSoft\MpStock\Helpers\DisplayImageThumbnail;
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -36,6 +39,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
     public const MENU_MOVEMENTS = 'AdminMpStockMovements';
     public const MENU_STOCK = 'AdminMpStock';
     public const MENU_PRODUCT = 'AdminMpStockProduct';
+    public const MENU_ALIGNMENT = 'AdminMpStockProduct';
     public const MENU_QUICK_MVT = 'AdminMpStockQuickMvt';
     public const MENU_AVAILABILITY = 'AdminMpStockAvailability';
     public const MENU_IMPORT = 'AdminMpStockImport';
@@ -242,6 +246,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         if ($ctrl instanceof AdminController && method_exists($ctrl, 'addCss')) {
             $ctrl->addCss($this->getLocalPath() . 'views/css/icon-menu.css');
             $ctrl->addCss($this->getLocalPath() . 'views/css/bootstrap.css');
+            $ctrl->addJs($this->getLocalPath() . 'views/js/ajaxCursor.js');
         }
     }
 
@@ -270,14 +275,7 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         foreach ($variants as $key => $variant) {
             $comb_name = '';
             /** @var array */
-            $cover = Image::getCover($product->id);
-            if ($cover) {
-                $folder = Image::getImgFolderStatic($cover['id_image']);
-                $image = '/img/p/' . $folder . $cover['id_image'] . '.jpg';
-            } else {
-                $image = 'https://img.freepik.com/free-vector/oops-404-error-with-broken-robot-concept-illustration_114360-5529.jpg?w=826&t=st=1712664728~exp=1712665328~hmac=6db023dbbd90c5751ac79dceb73bf51675bfd9242c007b7e518b61ced6c023ee';
-                $image = 'icon icon-picture-o icon-4x';
-            }
+            $image = DisplayImageThumbnail::displayImage($product->id);
             $first = $variants[$key][0];
             $variants[$key]['image'] = $image;
             $variants[$key]['id_product'] = $product->id;
@@ -302,10 +300,11 @@ class MpStock extends MpSoft\MpStock\Module\ModuleTemplate
         /** @var ModuleAdminController */
         $controller = $this->context->controller;
         $this->context->smarty->assign([
-            'ajax_url' => $this->context->link->getAdminLink($controller->controller_name),
+            'ajax_url' => $this->context->link->getAdminLink(self::MENU_ALIGNMENT),
             'reference' => $product->reference,
             'variants' => $variants,
             'link' => $this->context->link,
+            'isProductExtra' => true,
         ]);
 
         return $this->context->smarty->fetch($tpl);

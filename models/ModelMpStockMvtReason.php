@@ -23,7 +23,6 @@
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  *  International Registered Trademark & Property of PrestaShop SA
  */
-
 class ModelMpStockMvtReason extends AA_MpStockModelTemplate
 {
     public $id;
@@ -37,33 +36,33 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
     protected $module;
     protected $context;
 
-    public static $definition = array(
+    public static $definition = [
         'table' => 'mpstock_mvt_reason',
         'primary' => 'id_mpstock_mvt_reason',
         'multilang' => true,
-        'fields' => array(
-            'sign' => array(
+        'fields' => [
+            'sign' => [
                 'type' => self::TYPE_BOOL,
                 'validate' => 'isBool',
                 'required' => true,
-            ),
+            ],
             'active' => [
                 'type' => self::TYPE_BOOL,
                 'validate' => 'isBool',
                 'required' => true,
             ],
-            'date_add' => array(
+            'date_add' => [
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
                 'datetime' => true,
                 'required' => true,
-            ),
-            'date_upd' => array(
+            ],
+            'date_upd' => [
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
                 'timestamp' => true,
                 'required' => false,
-            ),
+            ],
             /** LANG FIELD **/
             'name' => [
                 'type' => self::TYPE_STRING,
@@ -72,8 +71,8 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
                 'lang' => true,
                 'required' => true,
             ],
-        ),
-    );
+        ],
+    ];
 
     public function __construct($id = null, $id_lang = null, $id_shop = null)
     {
@@ -94,6 +93,7 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
         if ($count) {
             return false;
         }
+
         return parent::delete();
     }
 
@@ -152,7 +152,7 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
     public static function isEmpty()
     {
         $db = Db::getInstance();
-        $sql = "select count(*) from " . _DB_PREFIX_ . self::$definition['table'];
+        $sql = 'select count(*) from ' . _DB_PREFIX_ . self::$definition['table'];
         $count = (int) $db->getValue($sql);
         if ($count) {
             return false;
@@ -170,6 +170,7 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
     {
         $shop = Context::getContext()->shop;
         $url = $shop->getBaseURI();
+
         return $url . 'modules/mpstock/';
     }
 
@@ -185,7 +186,7 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
         if ($row) {
             return $row['firstname'] . ' ' . $row['lastname'];
         } else {
-            return "";
+            return '';
         }
     }
 
@@ -201,10 +202,11 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
         if ($rows) {
             switch ($type) {
                 case 'list':
-                    $list = array();
+                    $list = [];
                     foreach ($rows as $row) {
                         $list[$row['id_mpstock_mvt_reason']] = $row['name'];
                     }
+
                     return $list;
                 case 'rows':
                     return $rows;
@@ -213,15 +215,17 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
                     foreach ($rows as $row) {
                         $options .= '<option value="' . $row['id_mpstock_mvt_reason'] . '">' . $row['name'] . '</option>';
                     }
+
                     return $options;
             }
+
             return $rows;
         } else {
-            return array();
+            return [];
         }
     }
 
-    public static function getMovementReasons($id_lang = null, $asSimpleArray = false)
+    public static function getMovementReasons($id_lang = null, $asSimpleArray = false, $sign = null)
     {
         if (!$id_lang) {
             $id_lang = Context::getContext()->language->id;
@@ -229,10 +233,16 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
 
         $db = Db::getInstance();
         $sql = new DbQuery();
-        $sql->select('id_mpstock_mvt_reason, name')
-            ->from(self::$definition['table'] . '_lang')
-            ->where('id_lang=' . (int) $id_lang)
+        $sql->select('ml.id_mpstock_mvt_reason, ml.name')
+            ->from(self::$definition['table'] . '_lang', 'ml')
+            ->innerJoin(self::$definition['table'], 'm', 'm.' . self::$definition['primary'] . ' = ml.id_mpstock_mvt_reason')
+            ->where('ml.id_lang=' . (int) $id_lang)
             ->orderBy(self::$definition['primary']);
+
+        if ($sign) {
+            $sql->where('m.sign=' . (int) $sign);
+        }
+
         $rows = $db->executeS($sql);
         if ($rows) {
             if ($asSimpleArray) {
@@ -248,5 +258,15 @@ class ModelMpStockMvtReason extends AA_MpStockModelTemplate
         }
 
         return [];
+    }
+
+    public static function getReason($id_mpstock_mvt_reason, $id_lang)
+    {
+        $mov = new ModelMpStockMvtReason($id_mpstock_mvt_reason, $id_lang);
+        if (!Validate::isLoadedObject($mov)) {
+            return false;
+        }
+
+        return $mov;
     }
 }
